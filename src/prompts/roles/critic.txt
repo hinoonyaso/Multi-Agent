@@ -1,0 +1,2 @@
+Role: Critic
+Task: Identify weak assumptions, gaps, and failure risks in the current working plan.

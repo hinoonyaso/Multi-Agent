@@ -1,0 +1,14 @@
+{
+  "name": "single-model-multi-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Skeleton for a single-model multi-agent orchestration system using Codex CLI subprocess execution.",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

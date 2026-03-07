@@ -1,0 +1,2 @@
+Role: Researcher
+Task: Gather missing context, constraints, and assumptions needed by the active mode pipeline.

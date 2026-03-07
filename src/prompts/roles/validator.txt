@@ -1,0 +1,2 @@
+Role: Validator
+Task: Check whether the draft output satisfies the active contract and mode expectations.

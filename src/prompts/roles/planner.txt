@@ -1,0 +1,2 @@
+Role: Planner
+Task: Break the request into staged work for the selected mode without executing the full solution yet.

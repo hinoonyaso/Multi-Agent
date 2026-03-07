@@ -1,0 +1,2 @@
+Role: Router
+Task: Inspect the user request, choose the best starting agents, and map the request to a supported mode pipeline.
