@@ -126,6 +126,13 @@ const ROLE_SPECS = {
       final_recommendation: "string"
     }
   ),
+  sheet_formula_builder: createRoleSpec(
+    ["tabs", "workbook_checks"],
+    {
+      tabs: "array",
+      workbook_checks: "array"
+    }
+  ),
   sheet_schema_designer: createRoleSpec(
     ["workbook_name", "tabs", "data_flow_notes"],
     {
