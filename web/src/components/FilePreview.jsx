@@ -9,9 +9,10 @@ const cardStyle = {
 
 const layoutStyle = {
   display: "grid",
-  gridTemplateColumns: "220px 1fr",
+  gridTemplateColumns: "180px minmax(0, 1fr)",
   gap: "16px",
-  minHeight: "280px"
+  minHeight: "520px",
+  alignItems: "start"
 };
 
 const listStyle = {
@@ -20,7 +21,7 @@ const listStyle = {
   padding: 0,
   display: "grid",
   gap: "8px",
-  maxHeight: "320px",
+  maxHeight: "520px",
   overflowY: "auto"
 };
 
@@ -48,13 +49,25 @@ const previewStyle = {
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   overflow: "auto",
-  maxHeight: "320px"
+  maxHeight: "360px"
+};
+
+const frameStyle = {
+  width: "100%",
+  minHeight: "560px",
+  border: "1px solid rgba(31, 41, 51, 0.12)",
+  borderRadius: "12px",
+  background: "#ffffff"
 };
 
 export default function FilePreview({ deliverables = [], files = [] }) {
   const previewFiles = useMemo(
     () => normalizePreviewFiles({ deliverables, files }),
     [deliverables, files]
+  );
+  const renderedPreview = useMemo(
+    () => buildRenderedPreview(previewFiles),
+    [previewFiles]
   );
   const [selectedPath, setSelectedPath] = useState(previewFiles[0]?.path ?? "");
 
@@ -102,6 +115,22 @@ export default function FilePreview({ deliverables = [], files = [] }) {
             <p style={{ marginTop: 0, marginBottom: "8px", color: "#52606d" }}>
               {selectedFile?.path ?? "No file selected"}
             </p>
+            {renderedPreview ? (
+              <>
+                <p style={{ marginTop: 0, marginBottom: "8px", color: "#52606d" }}>
+                  Rendered Preview
+                </p>
+                <iframe
+                  title="Rendered file preview"
+                  srcDoc={renderedPreview}
+                  style={frameStyle}
+                  sandbox="allow-scripts"
+                />
+                <p style={{ marginTop: "12px", marginBottom: "8px", color: "#52606d" }}>
+                  Source
+                </p>
+              </>
+            ) : null}
             <pre style={previewStyle}>
               {selectedFile?.content ?? "No preview content available."}
             </pre>
@@ -133,11 +162,79 @@ function normalizePreviewFiles({ deliverables, files }) {
       })
     : [];
 
-  return [...directFiles, ...deliverableFiles]
+  const dedupedFiles = [...directFiles, ...deliverableFiles]
     .filter((file) => typeof file?.path === "string" && typeof file?.content === "string")
     .map((file) => ({
       path: file.path.trim(),
       content: file.content
     }))
-    .filter((file) => file.path);
+    .filter((file) => file.path)
+    .reduce((accumulator, file) => {
+      if (!accumulator.some((entry) => entry.path === file.path)) {
+        accumulator.push(file);
+      }
+
+      return accumulator;
+    }, []);
+
+  return dedupedFiles;
+}
+
+function buildRenderedPreview(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return null;
+  }
+
+  const fileMap = new Map(
+    files.map((file) => [normalizeAssetPath(file.path), file.content])
+  );
+  const htmlFile =
+    files.find((file) => file.path.toLowerCase().endsWith(".html")) ?? null;
+
+  if (!htmlFile) {
+    return null;
+  }
+
+  let html = htmlFile.content;
+
+  html = html.replace(
+    /<link\b([^>]*?)href=(["'])([^"']+)\2([^>]*?)>/gi,
+    (match, beforeHref, quote, href, afterHref) => {
+      const stylesheet = fileMap.get(normalizeAssetPath(href));
+
+      if (!stylesheet) {
+        return match;
+      }
+
+      const relValue = `${beforeHref} ${afterHref}`.toLowerCase();
+
+      if (!relValue.includes("stylesheet")) {
+        return match;
+      }
+
+      return `<style data-source="${href}">\n${stylesheet}\n</style>`;
+    }
+  );
+
+  html = html.replace(
+    /<script\b([^>]*?)src=(["'])([^"']+)\2([^>]*)><\/script>/gi,
+    (match, beforeSrc, quote, src) => {
+      const script = fileMap.get(normalizeAssetPath(src));
+
+      if (!script) {
+        return match;
+      }
+
+      return `<script data-source="${src}">\n${script}\n</script>`;
+    }
+  );
+
+  return html;
+}
+
+function normalizeAssetPath(path) {
+  return String(path || "")
+    .trim()
+    .replace(/^\.?\//, "")
+    .replace(/^\//, "");
 }

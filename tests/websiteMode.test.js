@@ -5,7 +5,7 @@ import { rm } from "node:fs/promises";
 import { createRunState, loadRunState } from "../src/core/stateStore.js";
 import { runWebsiteMode } from "../src/modes/website/index.js";
 
-test("website mode runs architect-to-finalizer pipeline and persists each step", async () => {
+test("website mode runs architect-to-validator pipeline and persists each step", async () => {
   const stageRequests = [];
   const architectOutput = {
     site_type: "landing",
@@ -61,7 +61,7 @@ test("website mode runs architect-to-finalizer pipeline and persists each step",
         return createRunResult(architectOutput, request);
       }
 
-      if (request.stage === "website:coder") {
+      if (request.stage === "website:coder_first_pass") {
         return createRunResult(coderOutput, request);
       }
 
@@ -82,23 +82,6 @@ test("website mode runs architect-to-finalizer pipeline and persists each step",
             status: "approve",
             reasons: [],
             next_action: "Proceed to final packaging."
-          },
-          request
-        );
-      }
-
-      if (request.stage === "website:finalizer") {
-        return createRunResult(
-          {
-            final_mode: "website",
-            deliverables: [
-              {
-                name: "website-artifact",
-                type: "bundle",
-                content: JSON.stringify(finalArtifact, null, 2)
-              }
-            ],
-            delivery_notes: []
           },
           request
         );
@@ -125,22 +108,19 @@ test("website mode runs architect-to-finalizer pipeline and persists each step",
   try {
     assert.deepEqual(stageRequests, [
       "website:architect",
-      "website:coder",
+      "website:coder_first_pass",
       "website:ui_critic",
-      "website:validator",
-      "website:finalizer"
+      "website:validator"
     ]);
     assert.deepEqual(result, finalArtifact);
 
     const runs = await loadRunState(runState.runId);
 
     assert.equal(runs.steps.architect.stage, "architect");
-    assert.equal(runs.steps.coder.stage, "coder");
+    assert.equal(runs.steps.coder_first_pass.stage, "coder_first_pass");
     assert.equal(runs.steps.ui_critic.stage, "ui_critic");
     assert.equal(runs.steps.validator.stage, "validator");
-    assert.equal(runs.steps.finalizer.stage, "finalizer");
     assert.equal(runs.steps.validator.contractValidation.ok, true);
-    assert.deepEqual(runs.steps.finalizer.artifact, finalArtifact);
 
     await rm(runs.runDir, { recursive: true, force: true });
   } catch (error) {

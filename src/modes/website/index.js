@@ -3,7 +3,6 @@ import {
   loadRolePrompt
 } from "../../core/promptLoader.js";
 import {
-  parseJsonSafely,
   validateOutput
 } from "../../core/validator.js";
 import {
@@ -26,16 +25,14 @@ const STEP_KEYS = Object.freeze({
   revisionSummary: "revision_summary",
   coderRevision: "coder_revision",
   coderFinal: "coder_final",
-  validator: "validator",
-  finalizer: "finalizer"
+  validator: "validator"
 });
 const STAGE_ORDER = [
   "architect",
   "coder_first_pass",
   "ui_critic",
   "revision",
-  "validator",
-  "finalizer"
+  "validator"
 ];
 const STATIC_ENTRYPOINT_CANDIDATES = ["index.html", "main.html", "app.html"];
 const REACT_RUNTIME_ENTRYPOINT_CANDIDATES = [
@@ -100,21 +97,7 @@ export async function runWebsiteMode(context = {}) {
   );
   await persistWebsiteStep(runtime, STEP_KEYS.validator, validator);
 
-  emitStageEvent(emit, "finalizer_started", "finalizer", "Packaging website deliverable.");
-  const finalizer = await runFinalizerStage(
-    runtime,
-    validatedRevision.finalArtifactCandidate,
-    validator
-  );
-  emitStageEvent(
-    emit,
-    "finalizer_completed",
-    "finalizer",
-    summarizeFinalizerResult(finalizer)
-  );
-  await persistWebsiteStep(runtime, STEP_KEYS.finalizer, finalizer);
-
-  return extractFinalArtifact(finalizer.parsed) ?? validatedRevision.finalArtifactCandidate;
+  return validatedRevision.finalArtifactCandidate;
 }
 
 async function runArchitectStage(runtime) {
@@ -362,51 +345,6 @@ async function runValidatorStage(
   };
 }
 
-async function runFinalizerStage(runtime, artifactCandidate, validator) {
-  const prompt = await loadRolePrompt("finalizer");
-  const deliverableType = artifactCandidate.files.length > 1 ? "bundle" : "file";
-
-  const stage = await runWebsiteJsonStage({
-    runtime,
-    modeName: MODE_NAME,
-    stageName: "finalizer",
-    roleName: "finalizer",
-    rolePrompt: prompt,
-    input: {
-      userRequest: runtime.input.userRequest,
-      selectedMode: MODE_NAME,
-      approvedDraft: artifactCandidate,
-      validation: {
-        contract: validator.contractValidation,
-        recommendation: validator.approval
-      }
-    },
-    expectedOutput: {
-      final_mode: MODE_NAME,
-      deliverables: [
-        {
-          name: "website-artifact",
-          type: deliverableType,
-          content: JSON.stringify(artifactCandidate, null, 2)
-        }
-      ],
-      delivery_notes: []
-    }
-  });
-
-  return {
-    ...stage,
-    artifact: extractFinalArtifact(stage.parsed) ?? artifactCandidate,
-    revision: {
-      needsRevision: false,
-      reason: null,
-      // TODO: Route packaging failures back through validator once finalizer
-      // outputs are contract-checked independently.
-      nextTargetStage: null
-    }
-  };
-}
-
 function buildWebsiteArtifact(coderOutput) {
   const files = normalizeFiles(coderOutput?.files);
   const outputType = detectOutputType(files);
@@ -420,26 +358,6 @@ function buildWebsiteArtifact(coderOutput) {
     build_notes: normalizeStringArray(coderOutput?.build_notes),
     known_limitations: normalizeStringArray(coderOutput?.known_limitations)
   };
-}
-
-function extractFinalArtifact(finalizerOutput) {
-  if (!finalizerOutput || !Array.isArray(finalizerOutput.deliverables)) {
-    return null;
-  }
-
-  for (const deliverable of finalizerOutput.deliverables) {
-    if (typeof deliverable?.content !== "string") {
-      continue;
-    }
-
-    const parsed = parseJsonSafely(deliverable.content);
-
-    if (parsed.ok && isWebsiteArtifact(parsed.value)) {
-      return parsed.value;
-    }
-  }
-
-  return null;
 }
 
 function decideRevision({ coder, uiCritic, contractValidation, revision }) {
@@ -628,10 +546,6 @@ function detectEntrypoints(files, outputType) {
   }
 
   return files.length > 0 ? [files[0].path] : [];
-}
-
-function isWebsiteArtifact(value) {
-  return value?.mode === MODE_NAME && Array.isArray(value?.files);
 }
 
 async function runWebsiteJsonStage({
@@ -961,13 +875,6 @@ function summarizeValidatorResult(stage) {
   const recommendation = stage?.approval?.recommendation ?? "unknown";
   const errorCount = stage?.contractValidation?.errors?.length ?? 0;
   return `Validator completed with recommendation "${recommendation}" and ${errorCount} contract issue(s).`;
-}
-
-function summarizeFinalizerResult(stage) {
-  const deliverableCount = Array.isArray(stage?.parsed?.deliverables)
-    ? stage.parsed.deliverables.length
-    : 0;
-  return `Finalizer completed with ${deliverableCount} deliverable(s).`;
 }
 
 export const websiteModeStageOrder = STAGE_ORDER;

@@ -18,7 +18,12 @@ const shellStyle = {
 
 const layoutStyle = {
   display: "grid",
-  gridTemplateColumns: "320px 1fr 360px",
+  gridTemplateColumns: "320px minmax(0, 1fr) 360px",
+  gridTemplateAreas: `
+    "form timeline result"
+    "preview preview preview"
+  `,
+  alignItems: "start",
   gap: "16px",
   padding: "24px"
 };
@@ -26,6 +31,10 @@ const layoutStyle = {
 const stackStyle = {
   display: "grid",
   gap: "16px"
+};
+
+const panelStyle = {
+  minWidth: 0
 };
 
 const statusCardStyle = {
@@ -54,12 +63,27 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [runRecord, setRunRecord] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [clock, setClock] = useState(() => Date.now());
 
   useEffect(() => {
     return () => {
       closeActiveSocket(socketRef);
     };
   }, []);
+
+  useEffect(() => {
+    if (!(runStatus === "starting" || runStatus === "running")) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setClock(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [runStatus]);
 
   async function handleRunSubmit(payload) {
     closeActiveSocket(socketRef);
@@ -240,6 +264,12 @@ export default function App() {
   const isRunning = runStatus === "starting" || runStatus === "running";
   const hasStartedRun = runId !== "" || runRecord !== null || events.length > 0;
   const lastEvent = events[events.length - 1] ?? runRecord?.lastEvent ?? null;
+  const runDuration = getRunDuration({
+    runRecord,
+    events,
+    runStatus,
+    clock
+  });
   const statusBanner = getStatusBanner({
     hasStartedRun,
     isRunning,
@@ -248,6 +278,7 @@ export default function App() {
     socketStatus,
     lastEvent,
     errorMessage,
+    runDuration,
     deliverableCount: deliverables.length,
     fileCount: previewFiles.length,
     eventCount: events.length
@@ -287,7 +318,7 @@ export default function App() {
       </section>
 
       <section style={layoutStyle}>
-        <div style={stackStyle}>
+        <div style={{ ...stackStyle, ...panelStyle, gridArea: "form" }}>
           <RunForm
             onSubmit={handleRunSubmit}
             isRunning={isRunning}
@@ -295,21 +326,24 @@ export default function App() {
             status={runStatus}
             error={errorMessage}
           />
+        </div>
+
+        <div style={{ ...stackStyle, ...panelStyle, gridArea: "timeline" }}>
+          <AgentTimeline runId={runId} status={runStatus} events={events} />
+          <LogPanel runId={runId} status={runStatus} events={events} />
+        </div>
+
+        <div style={{ ...stackStyle, ...panelStyle, gridArea: "result" }}>
+          <ResultPanel runId={runId} status={runStatus} result={normalizedResult} />
+        </div>
+
+        <div style={{ ...panelStyle, gridArea: "preview" }}>
           <FilePreview
             runId={runId}
             status={runStatus}
             deliverables={deliverables}
             files={previewFiles}
           />
-        </div>
-
-        <div style={stackStyle}>
-          <AgentTimeline runId={runId} status={runStatus} events={events} />
-          <LogPanel runId={runId} status={runStatus} events={events} />
-        </div>
-
-        <div style={stackStyle}>
-          <ResultPanel runId={runId} status={runStatus} result={normalizedResult} />
         </div>
       </section>
     </main>
@@ -477,6 +511,7 @@ function getStatusBanner({
   socketStatus,
   lastEvent,
   errorMessage,
+  runDuration,
   deliverableCount,
   fileCount,
   eventCount
@@ -502,6 +537,7 @@ function getStatusBanner({
       meta: [
         `runId=${runId || "unknown"}`,
         `socket=${socketStatus}`,
+        `duration=${runDuration || "unknown"}`,
         `lastEvent=${lastEvent?.eventType || "none"}`,
         `events=${eventCount}`
       ].join("\n"),
@@ -520,6 +556,7 @@ function getStatusBanner({
         `runId=${runId || "pending"}`,
         `status=${runStatus}`,
         `socket=${socketStatus}`,
+        `elapsed=${runDuration || "unknown"}`,
         `events=${eventCount}`
       ].join("\n"),
       borderColor: "rgba(194, 120, 3, 0.24)",
@@ -535,6 +572,7 @@ function getStatusBanner({
         "Final run details are available. Inspect the result panel and any generated files.",
       meta: [
         `runId=${runId || "unknown"}`,
+        `duration=${runDuration || "unknown"}`,
         `deliverables=${deliverableCount}`,
         `previewFiles=${fileCount}`,
         `events=${eventCount}`
@@ -550,9 +588,59 @@ function getStatusBanner({
     meta: [
       `runId=${runId || "unknown"}`,
       `status=${runStatus}`,
-      `socket=${socketStatus}`
+      `socket=${socketStatus}`,
+      `duration=${runDuration || "unknown"}`
     ].join("\n"),
     borderColor: "rgba(31, 41, 51, 0.12)",
     background: "rgba(255, 255, 255, 0.76)"
   };
+}
+
+function getRunDuration({ runRecord, events, runStatus, clock }) {
+  const startedAt =
+    runRecord?.timestamps?.acceptedAt ??
+    runRecord?.acceptedAt ??
+    runRecord?.timestamps?.createdAt ??
+    runRecord?.createdAt ??
+    events[0]?.timestamp ??
+    null;
+
+  if (!startedAt) {
+    return null;
+  }
+
+  const startedAtMs = new Date(startedAt).getTime();
+
+  if (Number.isNaN(startedAtMs)) {
+    return null;
+  }
+
+  const completedAt =
+    runRecord?.timestamps?.completedAt ??
+    runRecord?.completedAt ??
+    runRecord?.timestamps?.finalizedAt ??
+    runRecord?.finalizedAt ??
+    (runStatus === "completed" || runStatus === "failed"
+      ? runRecord?.updatedAt ?? events[events.length - 1]?.timestamp ?? null
+      : null);
+  const endedAtMs =
+    completedAt && (runStatus === "completed" || runStatus === "failed")
+      ? new Date(completedAt).getTime()
+      : clock;
+  const durationMs = Math.max(0, endedAtMs - startedAtMs);
+
+  return formatDuration(durationMs);
+}
+
+function formatDuration(durationMs) {
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+  }
+
+  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
 }

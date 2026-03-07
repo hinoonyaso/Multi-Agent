@@ -10,7 +10,10 @@ const listStyle = {
   padding: 0,
   margin: 0,
   display: "grid",
-  gap: "10px"
+  gap: "10px",
+  maxHeight: "320px",
+  overflowY: "auto",
+  paddingRight: "6px"
 };
 
 const rowStyle = {

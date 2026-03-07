@@ -59,10 +59,9 @@ test("orchestrator smoke run calls router, planner, and a mode pipeline", async 
       "router",
       "planner",
       "website:architect",
-      "website:coder",
+      "website:coder_first_pass",
       "website:ui_critic",
       "website:validator",
-      "website:finalizer",
       "finalizer"
     ]);
     assert.equal(result.status, "ok");
@@ -132,7 +131,7 @@ function createOrchestratorRunnerMock(stageRequests) {
         );
       }
 
-      if (request.stage === "website:coder") {
+      if (request.stage === "website:coder_first_pass") {
         return createRunResult(
           {
             files: finalArtifact.files,
@@ -160,23 +159,6 @@ function createOrchestratorRunnerMock(stageRequests) {
             status: "approve",
             reasons: [],
             next_action: "Proceed to final packaging."
-          },
-          request
-        );
-      }
-
-      if (request.stage === "website:finalizer") {
-        return createRunResult(
-          {
-            final_mode: "website",
-            deliverables: [
-              {
-                name: "website-artifact",
-                type: "file",
-                content: JSON.stringify(finalArtifact)
-              }
-            ],
-            delivery_notes: []
           },
           request
         );
@@ -225,7 +207,7 @@ function createModeRunnerMock() {
         );
       }
 
-      if (request.stage === "website:coder") {
+      if (request.stage === "website:coder_first_pass") {
         return createRunResult(
           {
             files: finalArtifact.files,
@@ -253,23 +235,6 @@ function createModeRunnerMock() {
             status: "approve",
             reasons: [],
             next_action: "Proceed to final packaging."
-          },
-          request
-        );
-      }
-
-      if (request.stage === "website:finalizer") {
-        return createRunResult(
-          {
-            final_mode: "website",
-            deliverables: [
-              {
-                name: "website-artifact",
-                type: "file",
-                content: JSON.stringify(finalArtifact)
-              }
-            ],
-            delivery_notes: []
           },
           request
         );
