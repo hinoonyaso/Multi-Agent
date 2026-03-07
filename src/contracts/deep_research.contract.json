@@ -1,6 +1,160 @@
 {
   "mode": "deep_research",
-  "version": "0.1.0",
-  "description": "Placeholder contract for deep research mode output.",
-  "required": []
+  "version": "1.0.0",
+  "artifact_kind": "evidence_grounded_research_synthesis",
+  "description": "Strict contract for deep_research mode outputs. The result must be a structured research artifact that links claims to evidence, preserves uncertainty explicitly when needed, and ends with a synthesis suitable for long-form delivery. The artifact must not be a loose note dump, unsupported summary, or citation-light essay.",
+  "supported_output_types": [
+    "structured_research_json",
+    "markdown_research_report"
+  ],
+  "required_deliverables": {
+    "artifact_metadata": {
+      "required": true,
+      "fields": [
+        "mode",
+        "output_type",
+        "topic",
+        "executive_summary",
+        "findings",
+        "final_synthesis",
+        "sources"
+      ]
+    },
+    "topic_definition": {
+      "required": true,
+      "requirements": [
+        "The artifact must identify a clear research topic, question, or scope.",
+        "The scope must be specific enough that findings and synthesis can be evaluated against it.",
+        "The topic definition must not be empty, generic, or placeholder text."
+      ]
+    },
+    "executive_summary": {
+      "required": true,
+      "requirements": [
+        "The artifact must include exactly one executive summary.",
+        "The executive summary must summarize the most decision-relevant conclusions, not merely restate the topic.",
+        "The executive summary must remain concise relative to the full artifact while still communicating the central answer, major findings, and material caveats.",
+        "The executive summary must not introduce claims that are absent from the findings or unsupported by cited evidence."
+      ]
+    },
+    "findings": {
+      "required": true,
+      "minimum_count": 1,
+      "requirements": [
+        "The artifact must contain an explicit ordered findings section or findings list.",
+        "Each finding must state a clear claim, supporting evidence, and associated citation references.",
+        "Each finding must distinguish observed evidence from interpretation when both appear.",
+        "Each finding must be understandable without requiring the reader to infer missing support."
+      ]
+    },
+    "final_synthesis": {
+      "required": true,
+      "requirements": [
+        "The artifact must end with a final synthesis suitable for long-form delivery.",
+        "The synthesis must integrate the findings into a coherent answer, explanation, or narrative rather than repeat them mechanically.",
+        "The synthesis must preserve material caveats, tradeoffs, and uncertainty rather than smoothing them away.",
+        "The synthesis must be usable as downstream long-form source material without major researcher intervention."
+      ]
+    },
+    "sources": {
+      "required": true,
+      "minimum_count": 1,
+      "requirements": [
+        "The artifact must include an explicit source list or source objects.",
+        "Each cited source must be identifiable through stable citation metadata such as title, authoring entity, publication name, URL, date, or equivalent source handle.",
+        "Sources must be sufficient for a downstream reader or system to trace evidence back to origin."
+      ]
+    }
+  },
+  "executive_summary_requirements": {
+    "rules": [
+      "The executive summary must appear before detailed findings.",
+      "The executive summary must communicate the main answer or thesis in direct language.",
+      "The executive summary must cover the most important findings only and avoid low-signal detail overload.",
+      "The executive summary must mention the most material uncertainty, limitation, or evidence gap when such uncertainty affects interpretation.",
+      "Any factual or analytical claim in the executive summary must be traceable to at least one finding and its supporting citation set.",
+      "The executive summary must not contain drafting notes, methodological chatter, or unsupported speculation."
+    ]
+  },
+  "evidence_linked_findings_requirements": {
+    "rules": [
+      "Every finding must contain at least one explicit claim.",
+      "Every material claim must be linked to supporting evidence and one or more citations.",
+      "Evidence references must be specific enough to show why the cited source supports the claim.",
+      "If a finding synthesizes multiple sources, the finding must cite each materially supporting source rather than only one representative source.",
+      "If a claim is an inference rather than a directly stated source fact, the finding must make that inferential step explicit.",
+      "If sources materially disagree, the finding must describe the disagreement instead of collapsing it into a single overstated claim.",
+      "Findings must not present conjecture, common knowledge assumptions, or background filler as evidence-backed conclusions."
+    ]
+  },
+  "uncertainty_handling_rules": {
+    "rules": [
+      "The artifact must preserve uncertainty whenever the evidence is incomplete, conflicting, indirect, time-sensitive, or otherwise insufficient for high-confidence conclusion.",
+      "Uncertainty must be attached to the relevant claim, finding, or synthesis statement rather than hidden in a generic disclaimer.",
+      "The artifact must distinguish between verified facts, plausible inferences, contested claims, and unresolved questions.",
+      "When evidence conflicts, the output must describe the conflict and, when possible, explain which interpretation is better supported and why.",
+      "When important information is missing or unverified, the output must say so explicitly instead of implying certainty.",
+      "Confidence language, if used, must match the evidence strength and must not overstate what the sources establish.",
+      "Time-sensitive claims should preserve recency context or as-of timing when that timing materially affects reliability."
+    ]
+  },
+  "citation_coverage_requirements": {
+    "rules": [
+      "Every material factual claim must have citation coverage.",
+      "Every analytical or comparative claim must cite the evidence base that materially supports the analysis.",
+      "Each finding must include citation references directly alongside or immediately attached to the supported claim or evidence summary.",
+      "The final synthesis must cite or clearly inherit support from the cited findings for all non-trivial conclusions.",
+      "High-stakes, surprising, contested, or quantitative claims require especially clear citation coverage and should not rely on a single weak reference when stronger corroboration is needed.",
+      "Citations must resolve to entries in the source list without ambiguity.",
+      "A source list alone is insufficient; citation linkage inside the research body is required."
+    ]
+  },
+  "synthesis_quality_rules": {
+    "rules": [
+      "The final synthesis must integrate findings into a coherent, long-form-ready narrative or answer.",
+      "The synthesis must prioritize the strongest supported conclusions and avoid giving equal weight to minor or weakly supported points.",
+      "The synthesis must reconcile cross-source evidence where possible and make unresolved tensions explicit where reconciliation is not possible.",
+      "The synthesis must separate what is well supported from what remains uncertain or conditional.",
+      "The synthesis must add interpretive value beyond a list of findings while remaining faithful to the cited evidence.",
+      "The synthesis must not introduce new unsupported claims, recommendations, or factual assertions.",
+      "The overall artifact must read as a polished research deliverable rather than a collection of excerpts, bookmarks, or browsing notes."
+    ]
+  },
+  "research_structure_expectations": {
+    "rules": [
+      "The artifact must present a clear progression from topic framing to executive summary to evidence-linked findings to final synthesis.",
+      "Section ordering must support comprehension and traceability.",
+      "Headings, finding identifiers, or structured fields must make it possible to reference specific claims and their supporting evidence deterministically.",
+      "Background context is allowed only when it materially supports the research question or interpretation of findings.",
+      "The artifact must end cleanly without prompt scaffolding, notes to self, or generation metadata."
+    ]
+  },
+  "validation_rules": [
+    "mode must equal 'deep_research'.",
+    "output_type must be one of the supported_output_types.",
+    "The artifact must include exactly one executive summary.",
+    "At least one finding must exist.",
+    "Every finding must include a non-empty claim and non-empty supporting evidence description.",
+    "Every material claim in the executive summary, findings, and final synthesis must have citation coverage.",
+    "All citations must resolve unambiguously to declared sources.",
+    "The artifact must satisfy executive_summary_requirements, evidence_linked_findings_requirements, uncertainty_handling_rules, citation_coverage_requirements, synthesis_quality_rules, and research_structure_expectations.",
+    "The artifact must preserve uncertainty explicitly where evidence does not justify certainty.",
+    "The final synthesis must be suitable for long-form delivery rather than only bullet-point recap.",
+    "No explanatory meta-commentary may appear inside the artifact payload.",
+    "If JSON output is requested by the caller, the surrounding response must remain valid JSON only."
+  ],
+  "failure_conditions": [
+    "Missing executive summary, findings section, final synthesis, or source list.",
+    "Claims appear without linked evidence or without resolvable citations.",
+    "The executive summary contains unsupported conclusions or introduces claims absent from the body.",
+    "Findings are generic summaries, loose notes, or quotations without explicit claim-and-evidence structure.",
+    "Uncertainty, evidence gaps, or source conflicts are omitted, buried, or falsely resolved.",
+    "The final synthesis is merely a repetition of findings and does not integrate them into a coherent long-form answer.",
+    "Citations exist only as a bibliography with no inline or per-finding linkage.",
+    "Sources are too vague to identify, trace, or audit.",
+    "The artifact overstates confidence relative to the evidence base.",
+    "The output reads as brainstorming, browsing notes, or raw source excerpts instead of a structured research deliverable.",
+    "Schema fields are omitted, renamed, or supplemented in ways that break the contract.",
+    "Extra commentary appears outside the declared artifact structure."
+  ]
 }
