@@ -1,6 +1,145 @@
 {
   "mode": "slide",
-  "version": "0.1.0",
-  "description": "Placeholder contract for slide mode output.",
-  "required": []
+  "version": "1.0.0",
+  "artifact_kind": "presentation_ready_slide_deck_intermediate",
+  "description": "Strict contract for slide mode outputs. The result must be a slide-by-slide structured presentation artifact with presentation-ready outline and content suitable for later conversion into presentation files, not speaker notes, a prose document, or an unstructured brainstorm.",
+  "supported_output_types": [
+    "structured_slides_json",
+    "markdown_slide_outline"
+  ],
+  "required_deliverables": {
+    "artifact_metadata": {
+      "required": true,
+      "fields": [
+        "mode",
+        "output_type",
+        "title",
+        "slides"
+      ]
+    },
+    "deck_title": {
+      "required": true,
+      "requirements": [
+        "The presentation must contain exactly one deck title.",
+        "The deck title must clearly identify the presentation subject.",
+        "The deck title must not be empty, generic, or placeholder text."
+      ]
+    },
+    "slides": {
+      "required": true,
+      "minimum_count": 1,
+      "requirements": [
+        "The artifact must contain an explicit ordered slide sequence.",
+        "Each slide must include a slide title and body content.",
+        "Each slide must be presentation-ready and understandable without requiring the author to fill major gaps.",
+        "Each slide must preserve enough structure for deterministic conversion into presentation files."
+      ]
+    },
+    "slide_structure": {
+      "required": true,
+      "requirements": [
+        "Each slide must represent one primary message only.",
+        "Each slide must use concise presentation content rather than long-form prose blocks.",
+        "Slide content may use bullets, short supporting text, data callouts, or visual notes when needed, but the core message must remain singular and obvious.",
+        "Slides must not contain presenter instructions, drafting notes, or hidden meta commentary in place of actual content."
+      ]
+    }
+  },
+  "presentation_structure_requirements": {
+    "rules": [
+      "The deck must begin with a title slide or an equivalent opening slide that establishes topic and context.",
+      "The slide order must form a coherent progression from setup to development to close.",
+      "Section divider slides are allowed only when they materially improve comprehension.",
+      "A closing slide must provide a clear summary, recommendation, next step, or takeaway when the topic calls for closure.",
+      "The deck must end cleanly without trailing notes, prompt scaffolding, or generation metadata."
+    ]
+  },
+  "one_slide_one_message_rule": {
+    "required": true,
+    "rules": [
+      "Every slide must have exactly one dominant takeaway.",
+      "Supporting points on a slide must reinforce the same takeaway rather than introduce separate arguments.",
+      "If content requires multiple independent conclusions, it must be split into multiple slides.",
+      "Slide titles and body content must align on the same message."
+    ]
+  },
+  "visual_density_limits": {
+    "required": true,
+    "rules": [
+      "Slides must remain scannable at presentation distance.",
+      "A standard content slide should target 3 to 5 bullets and must not exceed 6 bullets.",
+      "Each bullet should usually stay to one line and should not exceed 16 words unless the slide type clearly requires a brief exception.",
+      "Paragraph-style text blocks longer than 40 words are not allowed on standard slides.",
+      "Dense tables, excessive sub-bullets, and overloaded comparison grids are not allowed unless the user explicitly requests data-heavy slides.",
+      "When a slide includes a chart, table, or diagram note, accompanying text must still remain concise."
+    ]
+  },
+  "narrative_flow_expectations": {
+    "rules": [
+      "The deck must establish context before analysis, recommendations, or conclusions unless the user explicitly asks for a different structure.",
+      "Each slide should logically set up the next slide or resolve a question raised by the previous one.",
+      "Redundant slides that restate the same point without adding value are not allowed.",
+      "Transitions between major sections must be intelligible from slide order and titles.",
+      "The overall sequence must read like a persuasive or explanatory narrative rather than a pile of disconnected facts."
+    ]
+  },
+  "title_and_bullet_quality_checks": {
+    "slide_titles": [
+      "Each slide must have a specific title that communicates the slide's takeaway or role.",
+      "Titles must not be generic labels such as 'Overview', 'Details', or 'Conclusion' unless clarified by context.",
+      "Titles should preferably be insight-bearing when the slide presents analysis or recommendations.",
+      "Titles must not duplicate each other without clear justification."
+    ],
+    "bullets": [
+      "Bullets must be parallel in style within the same slide.",
+      "Bullets must contain meaningful content, not fragments that require narration to become understandable.",
+      "Bullets must avoid filler wording, repetition, and obvious restatement of the title.",
+      "Bullets must support the title's message with evidence, explanation, examples, or subpoints that belong together."
+    ]
+  },
+  "formatting_expectations": {
+    "general": [
+      "Output must preserve slide order and slide boundaries unambiguously.",
+      "The intermediate representation must be easy to map into presentation software.",
+      "Whitespace, headings, bullet markers, and per-slide fields must be consistent.",
+      "Formatting must support later conversion into presentation files without manual reconstruction of intent."
+    ],
+    "markdown_slide_outline": [
+      "Each slide must be clearly delimited in Markdown.",
+      "Each slide title must be distinguishable from slide body content.",
+      "Bullet lists and supporting notes must remain syntactically coherent."
+    ],
+    "structured_slides_json": [
+      "Each slide object must preserve deck order explicitly.",
+      "Text-bearing fields must contain final presentation content rather than references to missing content.",
+      "Per-slide structure must be explicit enough for a renderer to map titles, bullets, and optional speaker-facing metadata deterministically."
+    ]
+  },
+  "validation_rules": [
+    "mode must equal 'slide'.",
+    "output_type must be one of the supported_output_types.",
+    "Exactly one deck title must be present.",
+    "At least one slide must exist.",
+    "Every slide must include a non-empty title and non-empty content.",
+    "Every slide must satisfy the one_slide_one_message_rule.",
+    "Slide content must stay within the visual_density_limits unless the user explicitly requests a denser format.",
+    "The deck must satisfy presentation_structure_requirements and narrative_flow_expectations.",
+    "Titles and bullets must satisfy title_and_bullet_quality_checks.",
+    "The artifact must be directly usable as a presentation-ready intermediate output rather than an outline stub or prose memo.",
+    "No explanatory meta-commentary may appear inside the slide artifact.",
+    "If JSON output is requested by the caller, the surrounding response must remain valid JSON only."
+  ],
+  "failure_conditions": [
+    "Missing deck title or missing slide list.",
+    "A slide contains multiple competing messages or unrelated bullet groups.",
+    "Slide text is so dense that it reads like a document page instead of a presentation slide.",
+    "Slides are primarily long paragraphs, raw notes, or speaker-script prose.",
+    "Titles are generic, duplicated, empty, or disconnected from slide content.",
+    "Bullets are vague, repetitive, non-parallel, or merely restate the title.",
+    "Slide order feels arbitrary, repetitive, or narratively broken.",
+    "Key requested sections or presentation beats are absent.",
+    "Placeholder text, TODO markers, or authoring instructions remain in the output.",
+    "Schema fields are omitted, renamed, or supplemented in ways that break the contract.",
+    "Extra commentary appears outside the declared artifact structure."
+  ]
 }
