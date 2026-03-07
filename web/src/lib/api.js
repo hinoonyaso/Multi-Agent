@@ -1,25 +1,26 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-export async function getServerStatus() {
-  return {
-    status: "placeholder",
-    baseUrl: API_BASE_URL,
-    note: "Replace with a real GET /api/health request when the server contract is finalized."
-  };
-}
-
-export async function createRun(payload) {
-  return {
-    status: "placeholder",
-    payload,
-    note: "Replace with a real POST /api/runs request."
-  };
+export async function startRun(payload) {
+  return requestJson(`${API_BASE_URL}/run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function getRun(runId) {
-  return {
-    status: "placeholder",
-    runId,
-    note: "Replace with a real GET /api/runs/:runId request."
-  };
+  return requestJson(`${API_BASE_URL}/run/${encodeURIComponent(runId)}`);
+}
+
+async function requestJson(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.error || "API request failed.");
+  }
+
+  return data;
 }
