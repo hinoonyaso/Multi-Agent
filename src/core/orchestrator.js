@@ -1,14 +1,18 @@
 import { createCodexRunner } from "./codexRunner.js";
-import { loadPrompt } from "./promptLoader.js";
+import {
+  loadCoreSystemPrompt,
+  loadRolePrompt
+} from "./promptLoader.js";
 import { createRetryPolicy } from "./retryPolicy.js";
 import { selectModePipeline } from "./router.js";
-import { createStateStore } from "./stateStore.js";
+import {
+  createRunState,
+  finalizeRun as persistFinalRun,
+  loadRunState,
+  saveStep
+} from "./stateStore.js";
 import { validateOutput } from "./validator.js";
 
-const CORE_SYSTEM_PROMPT_PATH = "core/system.txt";
-const ROUTER_PROMPT_PATH = "roles/router.txt";
-const PLANNER_PROMPT_PATH = "roles/planner.txt";
-const FINALIZER_PROMPT_PATH = "roles/finalizer.txt";
 const DEFAULT_MODE = "website";
 
 export async function runPipeline({ userRequest, modeHint, workingDir } = {}) {
@@ -29,13 +33,9 @@ export function createOrchestrator(overrides = {}) {
 }
 
 async function runPipelineInternal(input, dependencies) {
-  const { codexRunner, retryPolicy, stateStore } = dependencies;
-  const coreSystemPrompt = await loadPrompt(CORE_SYSTEM_PROMPT_PATH);
-
-  stateStore.set("lastRun", {
-    input,
-    startedAt: new Date().toISOString()
-  });
+  const { codexRunner, retryPolicy } = dependencies;
+  const runState = await createRunState(input);
+  const coreSystemPrompt = await loadCoreSystemPrompt();
 
   // Routing: ask the router role to choose the most appropriate mode before
   // any downstream work starts. The current runner is a placeholder, so mode
@@ -50,7 +50,7 @@ async function runPipelineInternal(input, dependencies) {
         input
       })
   });
-  stateStore.set("routing", routing);
+  await saveStep(runState, "router", routing);
 
   const selectedMode = resolveSelectedMode({
     routing,
@@ -72,7 +72,7 @@ async function runPipelineInternal(input, dependencies) {
         selectedMode
       })
   });
-  stateStore.set("planning", planning);
+  await saveStep(runState, "planner", planning);
 
   // Pipeline execution: hand the shared orchestration context to the selected
   // mode pipeline. Mode-specific agents and artifact generation stay inside the
@@ -84,12 +84,12 @@ async function runPipelineInternal(input, dependencies) {
     },
     routing,
     planning,
-    stateStore,
+    runState,
     codexRunner,
     retryPolicy,
     systemPrompt: coreSystemPrompt
   });
-  stateStore.set("pipelineResult", pipelineResult);
+  await saveStep(runState, "pipelineResult", pipelineResult);
 
   // Validation: keep contract checks behind the validator helper so this file
   // only coordinates the stage ordering. Strict schema enforcement is a TODO.
@@ -97,7 +97,7 @@ async function runPipelineInternal(input, dependencies) {
     mode: selectedMode,
     output: pipelineResult
   });
-  stateStore.set("validation", validation);
+  await saveStep(runState, "validation", validation);
 
   // Finalization: package the run into a stable return shape. The finalizer
   // prompt is loaded through the prompt loader so prompt text stays external.
@@ -109,19 +109,20 @@ async function runPipelineInternal(input, dependencies) {
     routing,
     planning,
     pipelineResult,
-    validation,
-    stateStore
+    validation
   });
-  stateStore.set("finalization", finalization);
+  await persistFinalRun(runState, finalization);
 
-  return finalization;
+  return {
+    ...finalization,
+    state: await loadRunState(runState.runId)
+  };
 }
 
 function createDefaultDependencies(overrides = {}) {
   return {
     codexRunner: overrides.codexRunner ?? createCodexRunner(),
-    retryPolicy: overrides.retryPolicy ?? createRetryPolicy(),
-    stateStore: overrides.stateStore ?? createStateStore()
+    retryPolicy: overrides.retryPolicy ?? createRetryPolicy()
   };
 }
 
@@ -142,7 +143,7 @@ function normalizeLegacyInput(input = {}) {
 }
 
 async function runRoutingStage({ codexRunner, coreSystemPrompt, input }) {
-  const routerPrompt = await loadPrompt(ROUTER_PROMPT_PATH);
+  const routerPrompt = await loadRolePrompt("router");
 
   return codexRunner.run({
     stage: "router",
@@ -163,7 +164,7 @@ async function runPlanningStage({
   routing,
   selectedMode
 }) {
-  const plannerPrompt = await loadPrompt(PLANNER_PROMPT_PATH);
+  const plannerPrompt = await loadRolePrompt("planner");
 
   return codexRunner.run({
     stage: "planner",
@@ -190,10 +191,9 @@ async function finalizeRun({
   routing,
   planning,
   pipelineResult,
-  validation,
-  stateStore
+  validation
 }) {
-  const finalizerPrompt = await loadPrompt(FINALIZER_PROMPT_PATH);
+  const finalizerPrompt = await loadRolePrompt("finalizer");
   const packagingResult = await codexRunner.run({
     stage: "finalizer",
     systemPrompt: coreSystemPrompt,
@@ -219,8 +219,7 @@ async function finalizeRun({
     planning,
     pipelineResult,
     validation,
-    packaging: packagingResult,
-    state: stateStore.snapshot()
+    packaging: packagingResult
   };
 }
 
