@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { runPipeline } from "../core/orchestrator.js";
+import { loadRunState } from "../core/stateStore.js";
 import { broadcastRunEvent } from "./websocket.js";
 
 export function createRoutes(options = {}) {
@@ -104,15 +105,30 @@ export function createRoutes(options = {}) {
       });
   });
 
-  router.get("/run/:runId", (request, response) => {
-    const runRecord = runs.get(request.params.runId);
+  router.get("/run/:runId", async (request, response) => {
+    try {
+      const requestedRunId = request.params.runId;
+      const runRecord = runs.get(requestedRunId) ?? null;
+      const persistedRunId = resolvePersistedRunId(runRecord, requestedRunId);
+      const persistedState = await loadPersistedState(persistedRunId);
 
-    if (!runRecord) {
-      response.status(404).json({ error: "Run not found." });
-      return;
+      if (!runRecord && !persistedState) {
+        response.status(404).json({ error: "Run not found." });
+        return;
+      }
+
+      response.json(
+        buildRunSummary({
+          requestedRunId,
+          runRecord,
+          persistedState
+        })
+      );
+    } catch (error) {
+      response.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to load run."
+      });
     }
-
-    response.json(runRecord);
   });
 
   return router;
@@ -164,4 +180,122 @@ function deriveRunStatus(event, currentStatus) {
   }
 
   return currentStatus;
+}
+
+function resolvePersistedRunId(runRecord, requestedRunId) {
+  if (typeof runRecord?.pipelineRunId === "string" && runRecord.pipelineRunId.trim() !== "") {
+    return runRecord.pipelineRunId;
+  }
+
+  if (typeof runRecord?.result?.state?.runId === "string" && runRecord.result.state.runId.trim() !== "") {
+    return runRecord.result.state.runId;
+  }
+
+  return requestedRunId;
+}
+
+async function loadPersistedState(runId) {
+  if (typeof runId !== "string" || runId.trim() === "") {
+    return null;
+  }
+
+  try {
+    return await loadRunState(runId);
+  } catch (error) {
+    if (
+      error?.code === "ENOENT" ||
+      error instanceof TypeError ||
+      error instanceof SyntaxError ||
+      error?.message?.includes("run id must contain only")
+    ) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function buildRunSummary({ requestedRunId, runRecord, persistedState }) {
+  const savedSteps = getSavedStepOutputs(persistedState);
+  const finalResult = runRecord?.result ?? persistedState?.final ?? null;
+  const pipelineRunId =
+    runRecord?.pipelineRunId ??
+    runRecord?.result?.state?.runId ??
+    persistedState?.runId ??
+    null;
+
+  return compactObject({
+    runId: requestedRunId,
+    status: deriveSummaryStatus({ runRecord, persistedState, finalResult }),
+    pipelineRunId,
+    input: runRecord?.input ?? persistedState?.input ?? null,
+    timestamps: compactObject({
+      acceptedAt: runRecord?.acceptedAt ?? null,
+      createdAt: persistedState?.createdAt ?? null,
+      updatedAt: runRecord?.updatedAt ?? persistedState?.updatedAt ?? null,
+      completedAt: runRecord?.completedAt ?? null,
+      finalizedAt: persistedState?.finalizedAt ?? null
+    }),
+    lastEvent: runRecord?.lastEvent ?? null,
+    savedSteps,
+    result: finalResult,
+    error: runRecord?.error ?? null
+  });
+}
+
+function deriveSummaryStatus({ runRecord, persistedState, finalResult }) {
+  if (typeof runRecord?.status === "string" && runRecord.status.trim() !== "") {
+    return runRecord.status;
+  }
+
+  if (runRecord?.error) {
+    return "failed";
+  }
+
+  if (finalResult || persistedState?.finalizedAt) {
+    return "completed";
+  }
+
+  if (persistedState) {
+    return "running";
+  }
+
+  return "unknown";
+}
+
+function getSavedStepOutputs(persistedState) {
+  if (!persistedState) {
+    return undefined;
+  }
+
+  return compactObject({
+    router: persistedState.router ?? null,
+    planner: persistedState.planner ?? null,
+    ...persistedState.steps,
+    validation: persistedState.validation ?? null
+  });
+}
+
+function compactObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const entries = Object.entries(value).filter(([, entryValue]) => {
+    if (entryValue === null || entryValue === undefined) {
+      return false;
+    }
+
+    if (!Array.isArray(entryValue) && typeof entryValue === "object") {
+      return Object.keys(entryValue).length > 0;
+    }
+
+    return true;
+  });
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries);
 }

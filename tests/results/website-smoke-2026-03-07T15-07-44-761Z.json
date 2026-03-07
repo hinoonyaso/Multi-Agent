@@ -1,0 +1,3025 @@
+{
+  "startedAt": "2026-03-07T14:11:13.952Z",
+  "finishedAt": "2026-03-07T15:07:44.761Z",
+  "total": 8,
+  "passed": 0,
+  "failed": 8,
+  "results": [
+    {
+      "id": "simple-landing-page",
+      "title": "Simple Landing",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 424960,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-11-13-957Z-b14b5d",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "personal-portfolio",
+      "title": "Personal Portfolio",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 421812,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-18-18-918Z-e86d1f",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "saas-product-intro",
+      "title": "SaaS Product Intro",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 426431,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-25-20-730Z-3716ef",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "event-page",
+      "title": "Event Page",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 423391,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-32-27-161Z-d6fc74",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "developer-tool-homepage",
+      "title": "Developer Tool Homepage",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 422770,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-39-30-552Z-75b2f0",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mobile-app-promo-page",
+      "title": "Mobile App Promo",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 422130,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-46-33-322Z-7820c6",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ambiguous-request",
+      "title": "Ambiguous Website Ask",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 422814,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T14-53-35-452Z-9c58bc",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "constraint-heavy-request",
+      "title": "Constraint Heavy",
+      "modeHint": "website",
+      "status": "failed",
+      "durationMs": 426495,
+      "validationOk": false,
+      "mode": "website",
+      "runId": "2026-03-07T15-00-38-266Z-b44b61",
+      "error": "At least one file must be provided. | At least one likely frontend entry file must exist. | Contract requires delivered files, but no valid files were found. | Contract requires an entrypoint deliverable, but no likely frontend entry file was found. | Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers. | Contract entrypoint expectation was not satisfied by any delivered file. | Contract expects an HTML entry file, but none was delivered.",
+      "validation": {
+        "ok": false,
+        "expectsJson": true,
+        "source": "object",
+        "parsed": {
+          "mode": "website",
+          "output_type": "static_html_css_js",
+          "entrypoints": [],
+          "files": [],
+          "build_notes": [],
+          "known_limitations": []
+        },
+        "json": null,
+        "role": null,
+        "mode": {
+          "ok": false,
+          "kind": "mode",
+          "modeName": "website",
+          "expectedFields": [
+            "mode",
+            "output_type",
+            "entrypoints",
+            "files"
+          ],
+          "missingFields": [],
+          "unexpectedFields": [],
+          "errors": [
+            {
+              "code": "website_files_empty",
+              "message": "At least one file must be provided.",
+              "path": "files"
+            },
+            {
+              "code": "website_entry_file_missing",
+              "message": "At least one likely frontend entry file must exist.",
+              "path": "files",
+              "details": {
+                "expectedCandidates": [
+                  "index.html",
+                  "main.html",
+                  "app.html",
+                  "src/main.jsx",
+                  "src/main.js",
+                  "src/main.tsx",
+                  "src/main.ts",
+                  "src/app.jsx",
+                  "src/app.js",
+                  "src/app.tsx",
+                  "src/app.ts",
+                  "app.jsx",
+                  "app.js",
+                  "app.tsx",
+                  "app.ts"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_files_deliverable",
+              "message": "Contract requires delivered files, but no valid files were found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_entrypoint_deliverable",
+              "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_missing_implementation_scope",
+              "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_entrypoint_examples_missing",
+              "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+              "path": "files",
+              "details": {
+                "allowedExamples": [
+                  "index.html",
+                  "src/main.jsx",
+                  "src/main.tsx"
+                ]
+              }
+            },
+            {
+              "code": "website_contract_missing_html_entry",
+              "message": "Contract expects an HTML entry file, but none was delivered.",
+              "path": "files"
+            }
+          ],
+          "warnings": [
+            {
+              "code": "website_contract_missing_dedicated_assets",
+              "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_styling_not_detected",
+              "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+              "path": "files"
+            },
+            {
+              "code": "website_contract_interaction_not_detected",
+              "message": "Contract references interaction logic, but no explicit script marker was detected.",
+              "path": "files"
+            }
+          ],
+          "contractVersion": "1.0.0",
+          "artifactKind": "implementation_ready_frontend",
+          "supportedOutputTypes": [
+            "static_html_css_js",
+            "react_vite_app"
+          ],
+          "website": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          },
+          "websiteFiles": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_files_empty",
+                "message": "At least one file must be provided.",
+                "path": "files"
+              },
+              {
+                "code": "website_entry_file_missing",
+                "message": "At least one likely frontend entry file must exist.",
+                "path": "files",
+                "details": {
+                  "expectedCandidates": [
+                    "index.html",
+                    "main.html",
+                    "app.html",
+                    "src/main.jsx",
+                    "src/main.js",
+                    "src/main.tsx",
+                    "src/main.ts",
+                    "src/app.jsx",
+                    "src/app.js",
+                    "src/app.tsx",
+                    "src/app.ts",
+                    "app.jsx",
+                    "app.js",
+                    "app.tsx",
+                    "app.ts"
+                  ]
+                }
+              }
+            ],
+            "warnings": []
+          },
+          "websiteContract": {
+            "pass": false,
+            "violations": [
+              {
+                "code": "website_contract_missing_files_deliverable",
+                "message": "Contract requires delivered files, but no valid files were found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_entrypoint_deliverable",
+                "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_missing_implementation_scope",
+                "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_entrypoint_examples_missing",
+                "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+                "path": "files",
+                "details": {
+                  "allowedExamples": [
+                    "index.html",
+                    "src/main.jsx",
+                    "src/main.tsx"
+                  ]
+                }
+              },
+              {
+                "code": "website_contract_missing_html_entry",
+                "message": "Contract expects an HTML entry file, but none was delivered.",
+                "path": "files"
+              }
+            ],
+            "warnings": [
+              {
+                "code": "website_contract_missing_dedicated_assets",
+                "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_styling_not_detected",
+                "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+                "path": "files"
+              },
+              {
+                "code": "website_contract_interaction_not_detected",
+                "message": "Contract references interaction logic, but no explicit script marker was detected.",
+                "path": "files"
+              }
+            ]
+          }
+        },
+        "errors": [
+          {
+            "code": "website_files_empty",
+            "message": "At least one file must be provided.",
+            "path": "files"
+          },
+          {
+            "code": "website_entry_file_missing",
+            "message": "At least one likely frontend entry file must exist.",
+            "path": "files",
+            "details": {
+              "expectedCandidates": [
+                "index.html",
+                "main.html",
+                "app.html",
+                "src/main.jsx",
+                "src/main.js",
+                "src/main.tsx",
+                "src/main.ts",
+                "src/app.jsx",
+                "src/app.js",
+                "src/app.tsx",
+                "src/app.ts",
+                "app.jsx",
+                "app.js",
+                "app.tsx",
+                "app.ts"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_files_deliverable",
+            "message": "Contract requires delivered files, but no valid files were found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_entrypoint_deliverable",
+            "message": "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_missing_implementation_scope",
+            "message": "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_entrypoint_examples_missing",
+            "message": "Contract entrypoint expectation was not satisfied by any delivered file.",
+            "path": "files",
+            "details": {
+              "allowedExamples": [
+                "index.html",
+                "src/main.jsx",
+                "src/main.tsx"
+              ]
+            }
+          },
+          {
+            "code": "website_contract_missing_html_entry",
+            "message": "Contract expects an HTML entry file, but none was delivered.",
+            "path": "files"
+          }
+        ],
+        "warnings": [
+          {
+            "code": "website_contract_missing_dedicated_assets",
+            "message": "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_styling_not_detected",
+            "message": "Contract requires styling, but no explicit styling file or inline style block was detected.",
+            "path": "files"
+          },
+          {
+            "code": "website_contract_interaction_not_detected",
+            "message": "Contract references interaction logic, but no explicit script marker was detected.",
+            "path": "files"
+          }
+        ]
+      }
+    }
+  ]
+}

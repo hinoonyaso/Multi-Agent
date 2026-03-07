@@ -7,6 +7,14 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const RUNS_ROOT = path.resolve(MODULE_DIR, "..", "..", "runs");
 const STEPS_DIRNAME = "steps";
 const SIMPLE_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+const RUN_STATUS_VALUES = new Set(["created", "running", "failed", "completed"]);
+
+export const RUN_STATUS = Object.freeze({
+  CREATED: "created",
+  RUNNING: "running",
+  FAILED: "failed",
+  COMPLETED: "completed"
+});
 
 export async function createRunState(initialInput) {
   const createdAt = new Date().toISOString();
@@ -18,15 +26,19 @@ export async function createRunState(initialInput) {
   const runState = {
     runId,
     runDir,
+    status: RUN_STATUS.CREATED,
     createdAt,
+    startedAt: null,
     updatedAt: createdAt,
+    completedAt: null,
     finalizedAt: null,
     input: initialInput ?? null,
     router: null,
     planner: null,
     steps: {},
     validation: null,
-    final: null
+    final: null,
+    error: null
   };
 
   await writeJson(path.join(runDir, "input.json"), runState.input);
@@ -39,8 +51,13 @@ export async function saveStep(runState, stepName, data) {
   assertRunState(runState);
   const normalizedStepName = normalizeName(stepName, "step name");
   const fileInfo = getStepFileInfo(normalizedStepName);
+  const timestamp = new Date().toISOString();
 
-  runState.updatedAt = new Date().toISOString();
+  if (runState.status === RUN_STATUS.CREATED) {
+    applyRunStatus(runState, RUN_STATUS.RUNNING, { timestamp });
+  } else {
+    runState.updatedAt = timestamp;
+  }
 
   if (fileInfo.kind === "router") {
     runState.router = data;
@@ -67,15 +84,19 @@ export async function loadRunState(runId) {
   const state = {
     runId: normalizedRunId,
     runDir,
+    status: normalizeLoadedStatus(meta),
     createdAt: meta?.createdAt ?? null,
+    startedAt: meta?.startedAt ?? deriveStartedAt(meta),
     updatedAt: meta?.updatedAt ?? null,
+    completedAt: meta?.completedAt ?? deriveCompletedAt(meta),
     finalizedAt: meta?.finalizedAt ?? null,
     input: await readJson(path.join(runDir, "input.json")),
     router: await readOptionalJson(path.join(runDir, "router.json")),
     planner: await readOptionalJson(path.join(runDir, "planner.json")),
     steps: {},
     validation: await readOptionalJson(path.join(runDir, "validation.json")),
-    final: await readOptionalJson(path.join(runDir, "final.json"))
+    final: await readOptionalJson(path.join(runDir, "final.json")),
+    error: meta?.error ?? null
   };
 
   for (const entry of await readdir(stepsDir, { withFileTypes: true })) {
@@ -94,14 +115,36 @@ export async function finalizeRun(runState, finalData) {
   assertRunState(runState);
   const finalizedAt = new Date().toISOString();
 
-  runState.updatedAt = finalizedAt;
-  runState.finalizedAt = finalizedAt;
+  applyRunStatus(runState, RUN_STATUS.COMPLETED, { timestamp: finalizedAt, error: null });
   runState.final = finalData;
+  runState.finalizedAt = finalizedAt;
 
   await writeJson(path.join(runState.runDir, "final.json"), finalData);
   await writeRunMeta(runState);
 
   return finalData;
+}
+
+export async function updateRunStatus(runState, status, options = {}) {
+  assertRunState(runState);
+  applyRunStatus(runState, status, options);
+  await writeRunMeta(runState);
+  return runState;
+}
+
+export async function startRun(runState, options = {}) {
+  return updateRunStatus(runState, RUN_STATUS.RUNNING, options);
+}
+
+export async function failRun(runState, error = null, options = {}) {
+  return updateRunStatus(runState, RUN_STATUS.FAILED, {
+    ...options,
+    error
+  });
+}
+
+export async function completeRun(runState, options = {}) {
+  return updateRunStatus(runState, RUN_STATUS.COMPLETED, options);
 }
 
 function getStepFileInfo(stepName) {
@@ -143,9 +186,13 @@ function getStepFileInfo(stepName) {
 async function writeRunMeta(runState) {
   const metadata = {
     runId: runState.runId,
+    status: normalizeStatus(runState.status),
     createdAt: runState.createdAt,
+    startedAt: runState.startedAt,
     updatedAt: runState.updatedAt,
+    completedAt: runState.completedAt,
     finalizedAt: runState.finalizedAt,
+    error: runState.error,
     files: {
       input: "input.json",
       router: runState.router === null ? null : "router.json",
@@ -258,6 +305,104 @@ function formatTimestamp(isoTimestamp) {
   return isoTimestamp.replaceAll(":", "-").replace(".", "-");
 }
 
+function applyRunStatus(runState, status, options = {}) {
+  const normalizedStatus = normalizeStatus(status);
+  const timestamp = normalizeTimestamp(options.timestamp) ?? new Date().toISOString();
+
+  runState.status = normalizedStatus;
+  runState.updatedAt = timestamp;
+
+  if (normalizedStatus === RUN_STATUS.CREATED) {
+    runState.startedAt = null;
+    runState.completedAt = null;
+    runState.error = null;
+  }
+
+  if (
+    normalizedStatus === RUN_STATUS.RUNNING ||
+    normalizedStatus === RUN_STATUS.FAILED ||
+    normalizedStatus === RUN_STATUS.COMPLETED
+  ) {
+    runState.startedAt = normalizeTimestamp(options.startedAt) ?? runState.startedAt ?? timestamp;
+  }
+
+  if (normalizedStatus === RUN_STATUS.RUNNING) {
+    runState.completedAt = null;
+  }
+
+  if (
+    normalizedStatus === RUN_STATUS.FAILED ||
+    normalizedStatus === RUN_STATUS.COMPLETED
+  ) {
+    runState.completedAt =
+      normalizeTimestamp(options.completedAt) ?? runState.completedAt ?? timestamp;
+  }
+
+  if (Object.hasOwn(options, "error")) {
+    runState.error = options.error ?? null;
+  } else if (normalizedStatus === RUN_STATUS.COMPLETED || normalizedStatus === RUN_STATUS.RUNNING) {
+    runState.error = null;
+  }
+}
+
+function normalizeLoadedStatus(meta) {
+  if (RUN_STATUS_VALUES.has(meta?.status)) {
+    return meta.status;
+  }
+
+  if (meta?.finalizedAt || meta?.completedAt || meta?.files?.final) {
+    return RUN_STATUS.COMPLETED;
+  }
+
+  if (meta?.updatedAt && meta?.createdAt && meta.updatedAt !== meta.createdAt) {
+    return RUN_STATUS.RUNNING;
+  }
+
+  return RUN_STATUS.CREATED;
+}
+
+function deriveStartedAt(meta) {
+  const status = normalizeLoadedStatus(meta);
+
+  if (status === RUN_STATUS.CREATED) {
+    return null;
+  }
+
+  return meta?.createdAt ?? null;
+}
+
+function deriveCompletedAt(meta) {
+  const status = normalizeLoadedStatus(meta);
+
+  if (status !== RUN_STATUS.COMPLETED && status !== RUN_STATUS.FAILED) {
+    return null;
+  }
+
+  return meta?.finalizedAt ?? meta?.updatedAt ?? null;
+}
+
+function normalizeStatus(status) {
+  if (typeof status !== "string" || !RUN_STATUS_VALUES.has(status)) {
+    throw new Error(
+      `status must be one of: ${[...RUN_STATUS_VALUES].join(", ")}.`
+    );
+  }
+
+  return status;
+}
+
+function normalizeTimestamp(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new TypeError("timestamp must be a non-empty ISO string when provided.");
+  }
+
+  return value;
+}
+
 function normalizeName(value, label) {
   if (typeof value !== "string") {
     throw new TypeError(`${label} must be a string.`);
@@ -281,5 +426,9 @@ function assertRunState(runState) {
 
   if (typeof runState.runId !== "string" || typeof runState.runDir !== "string") {
     throw new TypeError("runState is missing required run metadata.");
+  }
+
+  if (runState.status !== undefined) {
+    normalizeStatus(runState.status);
   }
 }

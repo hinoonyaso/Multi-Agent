@@ -27,6 +27,40 @@ Codex CLI subprocesses against `gpt-5.4`.
 
 Scaffold only. Full orchestration logic is intentionally not implemented yet.
 
+## Running the Local Web UI
+
+Install backend dependencies from the repo root:
+
+```bash
+npm install
+```
+
+Install frontend dependencies from the `web/` app:
+
+```bash
+cd web
+npm install
+```
+
+Start the backend API server from the repo root:
+
+```bash
+node src/server/app.js
+```
+
+Start the frontend dev server in a separate terminal from `web/`:
+
+```bash
+npm run dev
+```
+
+Expected local URLs:
+
+- Backend API: `http://localhost:3001`
+- Backend health check: `http://localhost:3001/health`
+- Frontend UI: `http://localhost:5173`
+- Frontend API proxy target: `http://localhost:5173/api`
+
 ## Website Mode MVP Completion Criteria
 
 Before moving on to `docx` mode, `website` mode should satisfy all of the following:
