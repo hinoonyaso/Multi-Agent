@@ -51,36 +51,66 @@ const REACT_ENTRYPOINT_CANDIDATES = [
 
 export async function runWebsiteMode(context = {}) {
   const runtime = await createModeRuntime(context);
+  const emit = createModeEventEmitter(context.onEvent, runtime);
 
+  emitStageEvent(emit, "architect_started", "architect", "Generating website architecture.");
   const architect = await runArchitectStage(runtime);
+  emitStageEvent(
+    emit,
+    "architect_completed",
+    "architect",
+    summarizeArchitectResult(architect)
+  );
   await persistWebsiteStep(runtime, STEP_KEYS.architect, architect);
 
-  const firstPass = await runFirstPassGeneration(runtime, architect);
+  const firstPass = await runFirstPassGeneration(runtime, architect, emit);
   await persistWebsiteStep(runtime, STEP_KEYS.coderFirstPass, firstPass.coder);
 
+  emitStageEvent(emit, "ui_critic_started", "ui_critic", "Reviewing first-pass implementation.");
   const critique = await runCritiqueStage(runtime, architect, firstPass);
+  emitStageEvent(
+    emit,
+    "ui_critic_completed",
+    "ui_critic",
+    summarizeCritiqueResult(critique.uiCritic)
+  );
   await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
 
-  const revision = await runRevisionStage(runtime, architect, firstPass, critique);
+  const revision = await runRevisionStage(runtime, architect, firstPass, critique, emit);
   const validatedRevision = await retryRevisionForValidatorFailure(
     runtime,
     architect,
-    revision
+    revision,
+    emit
   );
   await persistRevisionArtifacts(runtime, validatedRevision);
 
+  emitStageEvent(emit, "validator_started", "validator", "Validating website artifact.");
   const validator = await runValidatorStage(
     runtime,
     architect,
     critique.uiCritic,
     validatedRevision
   );
+  emitStageEvent(
+    emit,
+    "validator_completed",
+    "validator",
+    summarizeValidatorResult(validator)
+  );
   await persistWebsiteStep(runtime, STEP_KEYS.validator, validator);
 
+  emitStageEvent(emit, "finalizer_started", "finalizer", "Packaging website deliverable.");
   const finalizer = await runFinalizerStage(
     runtime,
     validatedRevision.finalArtifactCandidate,
     validator
+  );
+  emitStageEvent(
+    emit,
+    "finalizer_completed",
+    "finalizer",
+    summarizeFinalizerResult(finalizer)
   );
   await persistWebsiteStep(runtime, STEP_KEYS.finalizer, finalizer);
 
@@ -115,10 +145,11 @@ async function runArchitectStage(runtime) {
   });
 }
 
-async function runFirstPassGeneration(runtime, architect) {
+async function runFirstPassGeneration(runtime, architect, emit) {
   const coder = await runCoderStage(runtime, architect, {
     stageName: "coder_first_pass",
-    passName: "first_pass"
+    passName: "first_pass",
+    emit
   });
 
   return {
@@ -138,7 +169,7 @@ async function runCritiqueStage(runtime, architect, firstPass) {
   return { uiCritic };
 }
 
-async function runRevisionStage(runtime, architect, firstPass, critique) {
+async function runRevisionStage(runtime, architect, firstPass, critique, emit) {
   const plan = createRevisionPlan(critique.uiCritic);
 
   if (!plan.shouldRevise) {
@@ -155,12 +186,20 @@ async function runRevisionStage(runtime, architect, firstPass, critique) {
     };
   }
 
+  emitStageEvent(emit, "revision_started", "revision", "Applying UI critique revisions.");
   const revisedCoder = await runCoderStage(runtime, architect, {
     stageName: "coder_revision",
     passName: "revision",
     previousCoder: firstPass.coder,
-    revisionPlan: plan
+    revisionPlan: plan,
+    emit
   });
+  emitStageEvent(
+    emit,
+    "revision_completed",
+    "revision",
+    `Revision completed with ${plan.issues.length} issue(s) addressed.`
+  );
 
   return {
     firstPassCoder: firstPass.coder,
@@ -183,12 +222,20 @@ async function runCoderStage(
     passName = "first_pass",
     previousCoder = null,
     revisionPlan = null,
-    repairPrompt = ""
+    repairPrompt = "",
+    emit = null
   } = {}
 ) {
   const prompt = await loadModePrompt(MODE_NAME, "coder");
 
-  return runWebsiteJsonStage({
+  emitStageEvent(
+    emit,
+    "coder_started",
+    "coder",
+    summarizeCoderStart(passName, stageName)
+  );
+
+  const result = await runWebsiteJsonStage({
     runtime,
     modeName: MODE_NAME,
     stageName,
@@ -220,6 +267,15 @@ async function runCoderStage(
       known_limitations: []
     }
   });
+
+  emitStageEvent(
+    emit,
+    "coder_completed",
+    "coder",
+    summarizeCoderResult(passName, result)
+  );
+
+  return result;
 }
 
 async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
@@ -642,7 +698,7 @@ async function runWebsiteJsonStage({
   return stage;
 }
 
-async function retryRevisionForValidatorFailure(runtime, architect, revision) {
+async function retryRevisionForValidatorFailure(runtime, architect, revision, emit) {
   const maxAttempts = getRetryLimit(
     runtime,
     RETRY_ERROR_TYPES.CONTRACT_VALIDATION_FAILURE
@@ -680,6 +736,7 @@ async function retryRevisionForValidatorFailure(runtime, architect, revision) {
       passName: "repair",
       previousCoder: currentRevision.finalCoder,
       revisionPlan: createContractRepairPlan(contractValidation),
+      emit,
       repairPrompt: buildRetryRolePrompt({
         basePrompt: "",
         retryInstruction: buildRetryPolicyInstruction(
@@ -834,6 +891,83 @@ function safeSerialize(value) {
   } catch (error) {
     return String(error?.message ?? error ?? "");
   }
+}
+
+function createModeEventEmitter(onEvent, runtime) {
+  return (eventType, payload = {}) => {
+    if (typeof onEvent !== "function") {
+      return;
+    }
+
+    onEvent({
+      type: eventType,
+      mode: MODE_NAME,
+      runId: runtime.runState?.runId ?? null,
+      timestamp: new Date().toISOString(),
+      ...payload
+    });
+  };
+}
+
+function emitStageEvent(emit, type, step, summary) {
+  if (typeof emit !== "function") {
+    return;
+  }
+
+  emit(type, {
+    step,
+    summary
+  });
+}
+
+function summarizeArchitectResult(stage) {
+  const pageCount = Array.isArray(stage?.parsed?.pages) ? stage.parsed.pages.length : 0;
+  return `Architecture completed with ${pageCount} planned page(s).`;
+}
+
+function summarizeCoderStart(passName, stageName) {
+  if (passName === "revision") {
+    return `Running coder revision via "${stageName}".`;
+  }
+
+  if (passName === "repair") {
+    return `Running coder repair via "${stageName}".`;
+  }
+
+  return "Running initial coder pass.";
+}
+
+function summarizeCoderResult(passName, stage) {
+  const fileCount = Array.isArray(stage?.parsed?.files) ? stage.parsed.files.length : 0;
+
+  if (passName === "revision") {
+    return `Coder revision completed with ${fileCount} file(s).`;
+  }
+
+  if (passName === "repair") {
+    return `Coder repair completed with ${fileCount} file(s).`;
+  }
+
+  return `Coder completed first pass with ${fileCount} file(s).`;
+}
+
+function summarizeCritiqueResult(stage) {
+  const issueCount = Array.isArray(stage?.parsed?.issues) ? stage.parsed.issues.length : 0;
+  const recommendation = stage?.parsed?.final_recommendation ?? "unknown";
+  return `UI critique completed with ${issueCount} issue(s); recommendation: ${recommendation}.`;
+}
+
+function summarizeValidatorResult(stage) {
+  const recommendation = stage?.approval?.recommendation ?? "unknown";
+  const errorCount = stage?.contractValidation?.errors?.length ?? 0;
+  return `Validator completed with recommendation "${recommendation}" and ${errorCount} contract issue(s).`;
+}
+
+function summarizeFinalizerResult(stage) {
+  const deliverableCount = Array.isArray(stage?.parsed?.deliverables)
+    ? stage.parsed.deliverables.length
+    : 0;
+  return `Finalizer completed with ${deliverableCount} deliverable(s).`;
 }
 
 export const websiteModeStageOrder = STAGE_ORDER;

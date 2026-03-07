@@ -1,20 +1,45 @@
 import { runPipeline } from "./core/orchestrator.js";
+import { startServer } from "./server/app.js";
 
-const USAGE = "Usage: node src/index.js [--mode <mode>] <request>";
+const USAGE = [
+  "Usage:",
+  "  node src/index.js serve",
+  "  node src/index.js [--mode <mode>] <request>"
+].join("\n");
 
 async function main() {
-  const { userRequest, modeHint, help } = parseArgs(process.argv.slice(2));
+  const command = parseArgs(process.argv.slice(2));
 
-  if (help) {
+  if (command.help) {
     console.log(USAGE);
     return;
   }
 
-  const result = await runPipeline({ userRequest, modeHint });
+  if (command.kind === "serve") {
+    startServer();
+    return;
+  }
+
+  const result = await runPipeline({
+    userRequest: command.userRequest,
+    modeHint: command.modeHint
+  });
   console.log(formatSummary(result));
 }
 
 function parseArgs(args) {
+  if (args.length === 0) {
+    throw new Error(`Missing request text.\n${USAGE}`);
+  }
+
+  if (args[0] === "--help" || args[0] === "-h") {
+    return { help: true, kind: "help" };
+  }
+
+  if (args[0] === "serve") {
+    return { help: false, kind: "serve" };
+  }
+
   const requestParts = [];
   let modeHint = null;
 
@@ -22,7 +47,7 @@ function parseArgs(args) {
     const arg = args[index];
 
     if (arg === "--help" || arg === "-h") {
-      return { help: true, modeHint: null, userRequest: "" };
+      return { help: true, kind: "help" };
     }
 
     if (arg === "--mode") {
@@ -56,11 +81,12 @@ function parseArgs(args) {
   const userRequest = requestParts.join(" ").trim();
 
   if (!userRequest) {
-    throw new Error(`Missing request text. ${USAGE}`);
+    throw new Error(`Missing request text.\n${USAGE}`);
   }
 
   return {
     help: false,
+    kind: "run",
     modeHint,
     userRequest
   };
