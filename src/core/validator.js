@@ -1,5 +1,23 @@
 import { loadContract } from "./promptLoader.js";
 
+const WEBSITE_ENTRY_CANDIDATES = new Set([
+  "index.html",
+  "main.html",
+  "app.html",
+  "src/main.jsx",
+  "src/main.js",
+  "src/main.tsx",
+  "src/main.ts",
+  "src/app.jsx",
+  "src/app.js",
+  "src/app.tsx",
+  "src/app.ts",
+  "app.jsx",
+  "app.js",
+  "app.tsx",
+  "app.ts"
+]);
+
 const ROLE_SPECS = {
   critic: createRoleSpec(
     ["critical_issues", "minor_issues", "approved_if_fixed"],
@@ -289,7 +307,7 @@ export async function validateModeContract(mode, parsed) {
     ]
   };
 
-  return {
+  const result = {
     ...(validateAgainstSpec({
       kind: "mode",
       name: contract.mode,
@@ -301,6 +319,195 @@ export async function validateModeContract(mode, parsed) {
     artifactKind: contract.artifact_kind,
     supportedOutputTypes: contract.supported_output_types
   };
+
+  if (contract.mode === "website") {
+    const websiteFiles = validateWebsiteFiles(parsed?.files);
+    const websiteContract = validateWebsiteAgainstContract(parsed?.files, contract);
+    const website = mergeValidationResults(websiteFiles, websiteContract);
+
+    result.website = website;
+    result.websiteFiles = websiteFiles;
+    result.websiteContract = websiteContract;
+    result.ok &&= website.pass;
+    result.errors.push(...website.violations);
+    result.warnings.push(...website.warnings);
+  }
+
+  return result;
+}
+
+export function validateWebsiteFiles(files) {
+  const result = {
+    pass: true,
+    violations: [],
+    warnings: []
+  };
+
+  if (!Array.isArray(files)) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_files_missing",
+        "Field 'files' must be an array.",
+        "files"
+      )
+    );
+    return result;
+  }
+
+  const seenPaths = new Set();
+  const normalizedPaths = [];
+
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    const filePath = `files[${index}]`;
+
+    if (!isPlainObject(file)) {
+      result.pass = false;
+      result.violations.push(
+        createIssue(
+          "website_file_invalid",
+          "Each file must be an object with 'path' and 'content'.",
+          filePath
+        )
+      );
+      continue;
+    }
+
+    const rawPath = typeof file.path === "string" ? file.path.trim() : "";
+    const rawContent = typeof file.content === "string" ? file.content : "";
+
+    if (!rawPath) {
+      result.pass = false;
+      result.violations.push(
+        createIssue(
+          "website_file_missing_path",
+          "Each file must include a non-empty 'path'.",
+          `${filePath}.path`
+        )
+      );
+    } else {
+      const normalizedPath = normalizeWebsiteFilePath(rawPath);
+
+      if (seenPaths.has(normalizedPath)) {
+        result.pass = false;
+        result.violations.push(
+          createIssue(
+            "website_file_duplicate_path",
+            `File path '${rawPath}' must be unique.`,
+            `${filePath}.path`
+          )
+        );
+      } else {
+        seenPaths.add(normalizedPath);
+        normalizedPaths.push(normalizedPath);
+      }
+    }
+
+    if (typeof file.content !== "string") {
+      result.pass = false;
+      result.violations.push(
+        createIssue(
+          "website_file_missing_content",
+          "Each file must include string 'content'.",
+          `${filePath}.content`
+        )
+      );
+      continue;
+    }
+
+    if (!rawContent.trim()) {
+      result.pass = false;
+      result.violations.push(
+        createIssue(
+          "website_file_empty_content",
+          "Each file must include non-empty content.",
+          `${filePath}.content`
+        )
+      );
+    }
+  }
+
+  if (files.length === 0) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_files_empty",
+        "At least one file must be provided.",
+        "files"
+      )
+    );
+  }
+
+  if (!normalizedPaths.some((filePath) => isWebsiteEntryCandidate(filePath))) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_entry_file_missing",
+        "At least one likely frontend entry file must exist.",
+        "files",
+        {
+          expectedCandidates: [...WEBSITE_ENTRY_CANDIDATES]
+        }
+      )
+    );
+  }
+
+  if (
+    normalizedPaths.length > 0 &&
+    !normalizedPaths.some((filePath) => filePath.endsWith(".html"))
+  ) {
+    result.warnings.push(
+      createIssue(
+        "website_no_html_file",
+        "No HTML file was found. This may be valid for some app setups, but verify the delivered entry flow.",
+        "files"
+      )
+    );
+  }
+
+  return result;
+}
+
+export function validateWebsiteAgainstContract(files, contract) {
+  const result = {
+    pass: true,
+    violations: [],
+    warnings: []
+  };
+
+  if (!Array.isArray(files)) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_files_missing",
+        "Cannot apply website contract checks because 'files' is not a valid array.",
+        "files"
+      )
+    );
+    return result;
+  }
+
+  if (!isPlainObject(contract)) {
+    result.warnings.push(
+      createIssue(
+        "website_contract_unavailable",
+        "Website contract was not available for deterministic post-checks.",
+        "$"
+      )
+    );
+    return result;
+  }
+
+  const fileFacts = collectWebsiteFileFacts(files);
+  const requiredDeliverables = contract.required_deliverables ?? {};
+
+  applyRequiredDeliverableChecks(result, fileFacts, requiredDeliverables);
+  applyEntrypointContractChecks(result, fileFacts, requiredDeliverables.entrypoints);
+  applyRequiredFileTypeChecks(result, fileFacts, contract);
+  applyFrontendStructureChecks(result, fileFacts, contract);
+
+  return result;
 }
 
 export async function validateOutput({ mode, roleName, output } = {}) {
@@ -576,4 +783,325 @@ function isCodexRunResult(value) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeValidationResults(...results) {
+  const merged = {
+    pass: true,
+    violations: [],
+    warnings: []
+  };
+
+  for (const result of results) {
+    if (!result || typeof result !== "object") {
+      continue;
+    }
+
+    merged.pass &&= result.pass !== false;
+    appendUniqueIssues(merged.violations, result.violations);
+    appendUniqueIssues(merged.warnings, result.warnings);
+  }
+
+  return merged;
+}
+
+function appendUniqueIssues(target, issues) {
+  if (!Array.isArray(issues)) {
+    return;
+  }
+
+  for (const issue of issues) {
+    if (!isPlainObject(issue)) {
+      continue;
+    }
+
+    const exists = target.some(
+      (entry) =>
+        entry.code === issue.code &&
+        entry.path === issue.path &&
+        entry.message === issue.message
+    );
+
+    if (!exists) {
+      target.push(issue);
+    }
+  }
+}
+
+function collectWebsiteFileFacts(files) {
+  const normalizedPaths = files
+    .filter((file) => isPlainObject(file))
+    .map((file) => normalizeWebsiteFilePath(file.path ?? ""))
+    .filter(Boolean);
+  const contents = files
+    .filter((file) => isPlainObject(file) && typeof file.content === "string")
+    .map((file) => file.content);
+  const allContractText = contents.join("\n").toLowerCase();
+
+  return {
+    count: normalizedPaths.length,
+    paths: normalizedPaths,
+    hasEntryCandidate: normalizedPaths.some((filePath) => isWebsiteEntryCandidate(filePath)),
+    hasHtmlFile: normalizedPaths.some((filePath) => filePath.endsWith(".html")),
+    hasCssFile: normalizedPaths.some((filePath) =>
+      [".css", ".scss", ".sass", ".less"].some((suffix) => filePath.endsWith(suffix))
+    ),
+    hasRuntimeScriptFile: normalizedPaths.some((filePath) =>
+      [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"].some((suffix) =>
+        filePath.endsWith(suffix)
+      )
+    ),
+    hasPackageJson: normalizedPaths.includes("package.json"),
+    hasSrcDirectoryFile: normalizedPaths.some((filePath) => filePath.startsWith("src/")),
+    hasStyleMarker:
+      normalizedPaths.some((filePath) =>
+        [".css", ".scss", ".sass", ".less"].some((suffix) => filePath.endsWith(suffix))
+      ) || allContractText.includes("<style"),
+    hasInteractionMarker:
+      normalizedPaths.some((filePath) =>
+        [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"].some((suffix) =>
+          filePath.endsWith(suffix)
+        )
+      ) ||
+      allContractText.includes("<script") ||
+      allContractText.includes("addEventListener".toLowerCase()),
+    hasReactRuntimeEntry: normalizedPaths.some((filePath) =>
+      [
+        "src/main.jsx",
+        "src/main.js",
+        "src/main.tsx",
+        "src/main.ts"
+      ].includes(filePath)
+    )
+  };
+}
+
+function applyRequiredDeliverableChecks(result, fileFacts, requiredDeliverables) {
+  if (!isPlainObject(requiredDeliverables)) {
+    return;
+  }
+
+  if (requiredDeliverables.files?.required && fileFacts.count === 0) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_missing_files_deliverable",
+        "Contract requires delivered files, but no valid files were found.",
+        "files"
+      )
+    );
+  }
+
+  if (requiredDeliverables.entrypoints?.required && !fileFacts.hasEntryCandidate) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_missing_entrypoint_deliverable",
+        "Contract requires an entrypoint deliverable, but no likely frontend entry file was found.",
+        "files"
+      )
+    );
+  }
+
+  if (requiredDeliverables.implementation_scope?.required && !hasFrontendImplementation(fileFacts)) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_missing_implementation_scope",
+        "Contract requires an implementation-ready frontend, but the delivered files do not show clear frontend structure markers.",
+        "files"
+      )
+    );
+  }
+}
+
+function applyEntrypointContractChecks(result, fileFacts, entrypointsContract) {
+  if (!isPlainObject(entrypointsContract) || entrypointsContract.required !== true) {
+    return;
+  }
+
+  const allowedExamples = normalizeAllowedExamples(entrypointsContract.allowed_examples);
+
+  if (
+    allowedExamples.length > 0 &&
+    !fileFacts.paths.some((filePath) => allowedExamples.includes(filePath))
+  ) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_entrypoint_examples_missing",
+        "Contract entrypoint expectation was not satisfied by any delivered file.",
+        "files",
+        {
+          allowedExamples: entrypointsContract.allowed_examples
+        }
+      )
+    );
+  }
+}
+
+function applyRequiredFileTypeChecks(result, fileFacts, contract) {
+  const contractText = buildWebsiteContractText(contract);
+
+  if (contractText.includes("html entry file") && !fileFacts.hasHtmlFile) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_missing_html_entry",
+        "Contract expects an HTML entry file, but none was delivered.",
+        "files"
+      )
+    );
+  }
+
+  if (
+    contractText.includes("dedicated css or js file") &&
+    !(fileFacts.hasCssFile || fileFacts.hasRuntimeScriptFile)
+  ) {
+    result.warnings.push(
+      createIssue(
+        "website_contract_missing_dedicated_assets",
+        "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
+        "files"
+      )
+    );
+  }
+
+  if (
+    contractText.includes("include package metadata") &&
+    fileFacts.hasReactRuntimeEntry &&
+    !fileFacts.hasPackageJson
+  ) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_missing_package_metadata",
+        "Contract expects package metadata for app-style output, but 'package.json' was not delivered.",
+        "files"
+      )
+    );
+  }
+}
+
+function applyFrontendStructureChecks(result, fileFacts, contract) {
+  const contractText = buildWebsiteContractText(contract);
+
+  if (
+    contractText.includes("use a clear src-based component structure") &&
+    fileFacts.hasReactRuntimeEntry &&
+    !fileFacts.hasSrcDirectoryFile
+  ) {
+    result.pass = false;
+    result.violations.push(
+      createIssue(
+        "website_contract_missing_src_structure",
+        "Contract expects a src-based app structure, but no files were delivered under 'src/'.",
+        "files"
+      )
+    );
+  }
+
+  if (
+    contractText.includes("must include styling") &&
+    !fileFacts.hasStyleMarker
+  ) {
+    result.warnings.push(
+      createIssue(
+        "website_contract_styling_not_detected",
+        "Contract requires styling, but no explicit styling file or inline style block was detected.",
+        "files"
+      )
+    );
+  }
+
+  if (
+    contractText.includes("interaction logic") &&
+    !fileFacts.hasInteractionMarker
+  ) {
+    result.warnings.push(
+      createIssue(
+        "website_contract_interaction_not_detected",
+        "Contract references interaction logic, but no explicit script marker was detected.",
+        "files"
+      )
+    );
+  }
+}
+
+function normalizeWebsiteFilePath(filePath) {
+  return filePath.replace(/\\/g, "/").replace(/^\.\/+/, "").toLowerCase();
+}
+
+function isWebsiteEntryCandidate(filePath) {
+  if (WEBSITE_ENTRY_CANDIDATES.has(filePath)) {
+    return true;
+  }
+
+  return (
+    filePath.endsWith("/index.html") ||
+    filePath.endsWith("/main.html") ||
+    filePath.endsWith("/app.html") ||
+    filePath.endsWith("/src/main.jsx") ||
+    filePath.endsWith("/src/main.js") ||
+    filePath.endsWith("/src/main.tsx") ||
+    filePath.endsWith("/src/main.ts") ||
+    filePath.endsWith("/src/app.jsx") ||
+    filePath.endsWith("/src/app.js") ||
+    filePath.endsWith("/src/app.tsx") ||
+    filePath.endsWith("/src/app.ts") ||
+    filePath.endsWith("/app.jsx") ||
+    filePath.endsWith("/app.js") ||
+    filePath.endsWith("/app.tsx") ||
+    filePath.endsWith("/app.ts")
+  );
+}
+
+function normalizeAllowedExamples(allowedExamples) {
+  if (!Array.isArray(allowedExamples)) {
+    return [];
+  }
+
+  return allowedExamples
+    .filter((value) => typeof value === "string")
+    .map((value) => normalizeWebsiteFilePath(value))
+    .filter(Boolean);
+}
+
+function buildWebsiteContractText(contract) {
+  const parts = [
+    ...(Array.isArray(contract?.minimum_quality_checks) ? contract.minimum_quality_checks : []),
+    ...(Array.isArray(contract?.validation_rules) ? contract.validation_rules : []),
+    ...(Array.isArray(contract?.failure_conditions) ? contract.failure_conditions : []),
+    ...flattenContractObjectText(contract?.required_deliverables),
+    ...flattenContractObjectText(contract?.structural_expectations),
+    ...flattenContractObjectText(contract?.responsive_expectations),
+    ...flattenContractObjectText(contract?.code_organization_expectations)
+  ];
+
+  return parts.join("\n").toLowerCase();
+}
+
+function flattenContractObjectText(value) {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => flattenContractObjectText(entry));
+  }
+
+  if (isPlainObject(value)) {
+    return Object.values(value).flatMap((entry) => flattenContractObjectText(entry));
+  }
+
+  return [];
+}
+
+function hasFrontendImplementation(fileFacts) {
+  return (
+    fileFacts.hasHtmlFile ||
+    fileFacts.hasRuntimeScriptFile ||
+    fileFacts.hasStyleMarker ||
+    fileFacts.hasPackageJson
+  );
 }

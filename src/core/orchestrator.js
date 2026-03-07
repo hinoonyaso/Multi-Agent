@@ -1,5 +1,15 @@
 import { createCodexRunner } from "./codexRunner.js";
 import {
+  buildPlannerContext,
+  buildRouterContext,
+  buildWebsiteArchitectContext
+} from "./contextBuilder.js";
+import {
+  buildPlannerPrompt,
+  buildRouterPrompt
+} from "./promptBuilder.js";
+import {
+  loadContract,
   loadCoreSystemPrompt,
   loadRolePrompt
 } from "./promptLoader.js";
@@ -35,20 +45,11 @@ export function createOrchestrator(overrides = {}) {
 async function runPipelineInternal(input, dependencies) {
   const { codexRunner, retryPolicy } = dependencies;
   const runState = await createRunState(input);
-  const coreSystemPrompt = await loadCoreSystemPrompt();
 
-  // Routing: ask the router role to choose the most appropriate mode before
-  // any downstream work starts. The current runner is a placeholder, so mode
-  // extraction falls back to the caller-provided hint when needed.
   const routing = await executeWithRetry({
     stageName: "router",
     retryPolicy,
-    operation: () =>
-      runRoutingStage({
-        codexRunner,
-        coreSystemPrompt,
-        input
-      })
+    operation: () => runRoutingStage({ codexRunner, input })
   });
   await saveStep(runState, "router", routing);
 
@@ -57,26 +58,22 @@ async function runPipelineInternal(input, dependencies) {
     modeHint: input.modeHint
   });
   const modePipeline = selectModePipeline(selectedMode);
+  const contract = await loadModeContract(selectedMode);
 
-  // Planning: ask the planner role for execution structure after routing has
-  // resolved the target mode. Detailed plan enforcement remains a TODO.
   const planning = await executeWithRetry({
     stageName: "planner",
     retryPolicy,
     operation: () =>
       runPlanningStage({
         codexRunner,
-        coreSystemPrompt,
         input,
         routing,
-        selectedMode
+        selectedMode,
+        contract
       })
   });
   await saveStep(runState, "planner", planning);
 
-  // Pipeline execution: hand the shared orchestration context to the selected
-  // mode pipeline. Mode-specific agents and artifact generation stay inside the
-  // mode modules rather than being hardcoded here.
   const pipelineResult = await modePipeline({
     input: {
       ...input,
@@ -84,26 +81,27 @@ async function runPipelineInternal(input, dependencies) {
     },
     routing,
     planning,
+    contract,
+    modeContext: buildModeContext({
+      selectedMode,
+      input,
+      planning,
+      contract
+    }),
     runState,
     codexRunner,
-    retryPolicy,
-    systemPrompt: coreSystemPrompt
+    retryPolicy
   });
   await saveStep(runState, "pipelineResult", pipelineResult);
 
-  // Validation: keep contract checks behind the validator helper so this file
-  // only coordinates the stage ordering. Strict schema enforcement is a TODO.
   const validation = await validateOutput({
     mode: selectedMode,
     output: pipelineResult
   });
   await saveStep(runState, "validation", validation);
 
-  // Finalization: package the run into a stable return shape. The finalizer
-  // prompt is loaded through the prompt loader so prompt text stays external.
   const finalization = await finalizeRun({
     codexRunner,
-    coreSystemPrompt,
     input,
     selectedMode,
     routing,
@@ -142,50 +140,60 @@ function normalizeLegacyInput(input = {}) {
   });
 }
 
-async function runRoutingStage({ codexRunner, coreSystemPrompt, input }) {
-  const routerPrompt = await loadRolePrompt("router");
+async function runRoutingStage({ codexRunner, input }) {
+  const context = buildRouterContext({
+    userRequest: input.userRequest,
+    modeHint: input.modeHint
+  });
+  const expectedOutput = {
+    mode: input.modeHint ?? DEFAULT_MODE,
+    note: "TODO: replace placeholder routing output parsing with structured router results."
+  };
+  const prompt = await buildRouterPrompt({
+    context,
+    expectedOutput
+  });
 
   return codexRunner.run({
     stage: "router",
-    systemPrompt: coreSystemPrompt,
-    rolePrompt: routerPrompt,
-    input,
-    expectedOutput: {
-      mode: input.modeHint ?? DEFAULT_MODE,
-      note: "TODO: replace placeholder routing output parsing with structured router results."
-    }
+    prompt,
+    input: context,
+    expectedOutput
   });
 }
 
 async function runPlanningStage({
   codexRunner,
-  coreSystemPrompt,
   input,
   routing,
-  selectedMode
+  selectedMode,
+  contract
 }) {
-  const plannerPrompt = await loadRolePrompt("planner");
+  const context = buildPlannerContext({
+    userRequest: input.userRequest,
+    routerResult: buildPlannerRouterResult(routing, selectedMode),
+    contract
+  });
+  const expectedOutput = {
+    selectedMode,
+    steps: [],
+    note: "TODO: planner should emit a structured execution plan for the target mode."
+  };
+  const prompt = await buildPlannerPrompt({
+    context,
+    expectedOutput
+  });
 
   return codexRunner.run({
     stage: "planner",
-    systemPrompt: coreSystemPrompt,
-    rolePrompt: plannerPrompt,
-    input: {
-      ...input,
-      selectedMode,
-      routing
-    },
-    expectedOutput: {
-      selectedMode,
-      steps: [],
-      note: "TODO: planner should emit a structured execution plan for the target mode."
-    }
+    prompt,
+    input: context,
+    expectedOutput
   });
 }
 
 async function finalizeRun({
   codexRunner,
-  coreSystemPrompt,
   input,
   selectedMode,
   routing,
@@ -193,6 +201,7 @@ async function finalizeRun({
   pipelineResult,
   validation
 }) {
+  const coreSystemPrompt = await loadCoreSystemPrompt();
   const finalizerPrompt = await loadRolePrompt("finalizer");
   const packagingResult = await codexRunner.run({
     stage: "finalizer",
@@ -232,15 +241,53 @@ function resolveSelectedMode({ routing, modeHint }) {
   return routedMode ?? modeHint ?? DEFAULT_MODE;
 }
 
+function buildModeContext({ selectedMode, input, planning, contract }) {
+  if (selectedMode === "website") {
+    return {
+      architect: buildWebsiteArchitectContext({
+        userRequest: input.userRequest,
+        plannerResult: planning,
+        contract,
+        researchResult: null
+      })
+    };
+  }
+
+  return {};
+}
+
+function buildPlannerRouterResult(routing, selectedMode) {
+  return {
+    primary_mode: resolveSelectedMode({
+      routing,
+      modeHint: selectedMode
+    })
+  };
+}
+
+async function loadModeContract(mode) {
+  if (!mode) {
+    return null;
+  }
+
+  try {
+    return await loadContract(mode);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 async function executeWithRetry({ stageName, retryPolicy, operation }) {
   const maxAttempts = retryPolicy?.maxAttempts ?? 1;
   const backoffMs = retryPolicy?.backoffMs ?? 0;
   let attempt = 0;
   let lastError;
 
-  // Retry handling: keep retries centralized so individual orchestration stages
-  // stay focused on their own inputs and outputs. Backoff is intentionally
-  // minimal until real subprocess failures and retry rules are implemented.
+  // Keep retries centralized so stage functions only describe work and inputs.
   while (attempt < maxAttempts) {
     attempt += 1;
 

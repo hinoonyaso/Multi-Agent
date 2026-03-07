@@ -7,16 +7,33 @@ import {
   validateOutput
 } from "../../core/validator.js";
 import {
+  buildContractRepairPrompt,
+  buildInvalidJsonRepairPrompt
+} from "../../core/repairPromptBuilder.js";
+import { RETRY_ERROR_TYPES } from "../../core/retryPolicy.js";
+import {
   createModeRuntime,
   runJsonStage
 } from "../shared/pipeline.js";
 
 const MODE_NAME = "website";
 const DEFAULT_OUTPUT_TYPE = "static_html_css_js";
+const MAX_CODER_REVISIONS = 1;
+const STEP_KEYS = Object.freeze({
+  architect: "architect",
+  coderFirstPass: "coder_first_pass",
+  uiCritic: "ui_critic",
+  revisionSummary: "revision_summary",
+  coderRevision: "coder_revision",
+  coderFinal: "coder_final",
+  validator: "validator",
+  finalizer: "finalizer"
+});
 const STAGE_ORDER = [
   "architect",
-  "coder",
+  "coder_first_pass",
   "ui_critic",
+  "revision",
   "validator",
   "finalizer"
 ];
@@ -36,34 +53,44 @@ export async function runWebsiteMode(context = {}) {
   const runtime = await createModeRuntime(context);
 
   const architect = await runArchitectStage(runtime);
-  await runtime.save("architect", architect);
+  await persistWebsiteStep(runtime, STEP_KEYS.architect, architect);
 
-  const coder = await runCoderStage(runtime, architect);
-  await runtime.save("coder", coder);
+  const firstPass = await runFirstPassGeneration(runtime, architect);
+  await persistWebsiteStep(runtime, STEP_KEYS.coderFirstPass, firstPass.coder);
 
-  const artifactCandidate = buildWebsiteArtifact(coder.parsed);
-  const uiCritic = await runUiCriticStage(runtime, architect, coder, artifactCandidate);
-  await runtime.save("ui_critic", uiCritic);
+  const critique = await runCritiqueStage(runtime, architect, firstPass);
+  await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
+
+  const revision = await runRevisionStage(runtime, architect, firstPass, critique);
+  const validatedRevision = await retryRevisionForValidatorFailure(
+    runtime,
+    architect,
+    revision
+  );
+  await persistRevisionArtifacts(runtime, validatedRevision);
 
   const validator = await runValidatorStage(
     runtime,
     architect,
-    coder,
-    uiCritic,
-    artifactCandidate
+    critique.uiCritic,
+    validatedRevision
   );
-  await runtime.save("validator", validator);
+  await persistWebsiteStep(runtime, STEP_KEYS.validator, validator);
 
-  const finalizer = await runFinalizerStage(runtime, artifactCandidate, validator);
-  await runtime.save("finalizer", finalizer);
+  const finalizer = await runFinalizerStage(
+    runtime,
+    validatedRevision.finalArtifactCandidate,
+    validator
+  );
+  await persistWebsiteStep(runtime, STEP_KEYS.finalizer, finalizer);
 
-  return extractFinalArtifact(finalizer.parsed) ?? artifactCandidate;
+  return extractFinalArtifact(finalizer.parsed) ?? validatedRevision.finalArtifactCandidate;
 }
 
 async function runArchitectStage(runtime) {
   const prompt = await loadModePrompt(MODE_NAME, "architect");
 
-  return runJsonStage({
+  return runWebsiteJsonStage({
     runtime,
     modeName: MODE_NAME,
     stageName: "architect",
@@ -88,21 +115,99 @@ async function runArchitectStage(runtime) {
   });
 }
 
-async function runCoderStage(runtime, architect) {
+async function runFirstPassGeneration(runtime, architect) {
+  const coder = await runCoderStage(runtime, architect, {
+    stageName: "coder_first_pass",
+    passName: "first_pass"
+  });
+
+  return {
+    coder,
+    artifactCandidate: buildWebsiteArtifact(coder.parsed)
+  };
+}
+
+async function runCritiqueStage(runtime, architect, firstPass) {
+  const uiCritic = await runUiCriticStage(
+    runtime,
+    architect,
+    firstPass.coder,
+    firstPass.artifactCandidate
+  );
+
+  return { uiCritic };
+}
+
+async function runRevisionStage(runtime, architect, firstPass, critique) {
+  const plan = createRevisionPlan(critique.uiCritic);
+
+  if (!plan.shouldRevise) {
+    return {
+      firstPassCoder: firstPass.coder,
+      revisedCoder: null,
+      finalCoder: firstPass.coder,
+      finalArtifactCandidate: firstPass.artifactCandidate,
+      summary: createRevisionSummary({
+        plan,
+        selectedStage: firstPass.coder.stage,
+        revisedCoder: null
+      })
+    };
+  }
+
+  const revisedCoder = await runCoderStage(runtime, architect, {
+    stageName: "coder_revision",
+    passName: "revision",
+    previousCoder: firstPass.coder,
+    revisionPlan: plan
+  });
+
+  return {
+    firstPassCoder: firstPass.coder,
+    revisedCoder,
+    finalCoder: revisedCoder,
+    finalArtifactCandidate: buildWebsiteArtifact(revisedCoder.parsed),
+    summary: createRevisionSummary({
+      plan,
+      selectedStage: revisedCoder.stage,
+      revisedCoder
+    })
+  };
+}
+
+async function runCoderStage(
+  runtime,
+  architect,
+  {
+    stageName = "coder",
+    passName = "first_pass",
+    previousCoder = null,
+    revisionPlan = null,
+    repairPrompt = ""
+  } = {}
+) {
   const prompt = await loadModePrompt(MODE_NAME, "coder");
 
-  return runJsonStage({
+  return runWebsiteJsonStage({
     runtime,
     modeName: MODE_NAME,
-    stageName: "coder",
+    stageName,
     roleName: "website_coder",
-    rolePrompt: prompt,
+    rolePrompt: buildRetryRolePrompt({
+      basePrompt: prompt,
+      repairPrompt
+    }),
     input: {
       mode: MODE_NAME,
       userRequest: runtime.input.userRequest,
       routing: runtime.routing,
       planning: runtime.planning,
-      architecture: architect.parsed
+      architecture: architect.parsed,
+      generation: createCoderGenerationInput({
+        passName,
+        previousCoder,
+        revisionPlan
+      })
     },
     expectedOutput: {
       files: [
@@ -120,7 +225,7 @@ async function runCoderStage(runtime, architect) {
 async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
   const prompt = await loadModePrompt(MODE_NAME, "ui_critic");
 
-  return runJsonStage({
+  return runWebsiteJsonStage({
     runtime,
     modeName: MODE_NAME,
     stageName: "ui_critic",
@@ -144,33 +249,37 @@ async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
 async function runValidatorStage(
   runtime,
   architect,
-  coder,
   uiCritic,
-  artifactCandidate
+  revision
 ) {
   const prompt = await loadRolePrompt("validator");
   const contractValidation = await validateOutput({
     mode: MODE_NAME,
-    output: artifactCandidate
+    output: revision.finalArtifactCandidate
   });
   const validatorDecision = decideRevision({
-    coder,
+    coder: revision.finalCoder,
     uiCritic,
-    contractValidation
+    contractValidation,
+    revision
   });
 
-  const stage = await runJsonStage({
+  const stage = await runWebsiteJsonStage({
     runtime,
     modeName: MODE_NAME,
     stageName: "validator",
+    roleName: "validator",
     rolePrompt: prompt,
     input: {
       mode: MODE_NAME,
       userRequest: runtime.input.userRequest,
       architecture: architect.parsed,
-      implementation: artifactCandidate,
-      coder_output: coder.parsed,
+      implementation: revision.finalArtifactCandidate,
+      coder_output: revision.finalCoder.parsed,
+      first_pass_coder_output: revision.firstPassCoder.parsed,
+      revised_coder_output: revision.revisedCoder?.parsed ?? null,
       ui_review: uiCritic.parsed,
+      revision_summary: revision.summary,
       contract_validation: contractValidation,
       revision_signal: validatorDecision
     },
@@ -192,8 +301,6 @@ async function runValidatorStage(
     },
     revision: {
       ...validatorDecision,
-      // TODO: Use retryPolicy plus stage-specific patching to drive automatic
-      // critique-informed revisions instead of only emitting a placeholder.
       nextTargetStage: validatorDecision.needsRevision ? "coder" : null
     }
   };
@@ -203,7 +310,7 @@ async function runFinalizerStage(runtime, artifactCandidate, validator) {
   const prompt = await loadRolePrompt("finalizer");
   const deliverableType = artifactCandidate.files.length > 1 ? "bundle" : "file";
 
-  const stage = await runJsonStage({
+  const stage = await runWebsiteJsonStage({
     runtime,
     modeName: MODE_NAME,
     stageName: "finalizer",
@@ -279,9 +386,10 @@ function extractFinalArtifact(finalizerOutput) {
   return null;
 }
 
-function decideRevision({ coder, uiCritic, contractValidation }) {
+function decideRevision({ coder, uiCritic, contractValidation, revision }) {
   const criticRecommendation = uiCritic?.parsed?.final_recommendation;
-  const criticNeedsRevision = criticRecommendation === "revise";
+  const criticNeedsRevision =
+    criticRecommendation === "revise" && revision?.summary?.attempts === 0;
   const coderInvalid = Boolean(coder) && !coder.ok;
 
   return {
@@ -292,6 +400,124 @@ function decideRevision({ coder, uiCritic, contractValidation }) {
       ...(!contractValidation.ok ? ["website_contract_validation_failed"] : [])
     ]
   };
+}
+
+function createRevisionPlan(uiCritic) {
+  const recommendation = uiCritic?.parsed?.final_recommendation;
+  const issues = normalizeCriticIssues(uiCritic?.parsed?.issues);
+  const shouldRevise = recommendation === "revise" && MAX_CODER_REVISIONS > 0;
+  const instructions = shouldRevise
+    ? buildRevisionInstructions(issues, recommendation)
+    : [];
+
+  return {
+    maxAttempts: MAX_CODER_REVISIONS,
+    attempts: shouldRevise ? 1 : 0,
+    recommendation: typeof recommendation === "string" ? recommendation : null,
+    issues,
+    instructions,
+    shouldRevise
+  };
+}
+
+function createRevisionSummary({ plan, selectedStage, revisedCoder }) {
+  return {
+    stage: "revision",
+    triggered: plan.shouldRevise,
+    attempts: plan.attempts,
+    maxAttempts: plan.maxAttempts,
+    recommendation: plan.recommendation,
+    issues: plan.issues,
+    instructions: plan.instructions,
+    revisedCoderStage: revisedCoder?.stage ?? null,
+    selectedCoderStage: selectedStage
+  };
+}
+
+function createCoderGenerationInput({ passName, previousCoder, revisionPlan }) {
+  if (passName === "first_pass") {
+    return {
+      pass: "first_pass",
+      revision_count: 0,
+      max_revision_count: MAX_CODER_REVISIONS
+    };
+  }
+
+  if (passName === "repair") {
+    return {
+      pass: "repair",
+      revision_count: 0,
+      max_revision_count: MAX_CODER_REVISIONS,
+      previous_coder_output: previousCoder?.parsed ?? null,
+      contract_repair_issues: revisionPlan?.issues ?? [],
+      revision_instructions: revisionPlan?.instructions ?? []
+    };
+  }
+
+  return {
+    pass: "revision",
+    revision_count: 1,
+    max_revision_count: MAX_CODER_REVISIONS,
+    previous_coder_output: previousCoder?.parsed ?? null,
+    critic_issues: revisionPlan?.issues ?? [],
+    revision_instructions: revisionPlan?.instructions ?? []
+  };
+}
+
+function normalizeCriticIssues(issues) {
+  if (!Array.isArray(issues)) {
+    return [];
+  }
+
+  return issues
+    .map((issue, index) => stringifyCriticIssue(issue, index))
+    .filter(Boolean);
+}
+
+function buildRevisionInstructions(issues, recommendation) {
+  const instructions = issues.map(
+    (issue, index) => `Revision ${index + 1}: Address this UI issue: ${issue}`
+  );
+
+  if (instructions.length > 0) {
+    return instructions;
+  }
+
+  return recommendation === "revise"
+    ? ["Revision 1: Address the UI critic feedback and improve the implementation."]
+    : [];
+}
+
+function stringifyCriticIssue(issue, index) {
+  if (typeof issue === "string") {
+    const value = issue.trim();
+    return value || null;
+  }
+
+  if (issue && typeof issue === "object") {
+    const preferredFields = [
+      issue.summary,
+      issue.issue,
+      issue.title,
+      issue.description,
+      issue.message
+    ];
+
+    for (const value of preferredFields) {
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    const serialized = JSON.stringify(issue);
+    return serialized === undefined ? `Issue ${index + 1}` : serialized;
+  }
+
+  if (issue === null || issue === undefined) {
+    return null;
+  }
+
+  return String(issue);
 }
 
 function normalizeFiles(files) {
@@ -350,6 +576,264 @@ function detectEntrypoints(files, outputType) {
 
 function isWebsiteArtifact(value) {
   return value?.mode === MODE_NAME && Array.isArray(value?.files);
+}
+
+async function runWebsiteJsonStage({
+  runtime,
+  modeName,
+  stageName,
+  roleName,
+  rolePrompt,
+  input,
+  expectedOutput
+}) {
+  const maxAttempts = getRetryLimit(runtime, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT);
+  let attempt = 1;
+  let stage = null;
+
+  while (attempt <= maxAttempts) {
+    const promptForAttempt =
+      attempt === 1
+        ? rolePrompt
+        : buildRetryRolePrompt({
+            basePrompt: rolePrompt,
+            retryInstruction: buildRetryPolicyInstruction(
+              runtime,
+              RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
+              { stage: stageName, roleName }
+            ),
+            repairPrompt: buildInvalidJsonRepairPrompt({
+              roleName,
+              rawOutput: stage?.run?.stdout ?? "",
+              expectedSchemaSummary: safeSerialize(expectedOutput)
+            })
+          });
+
+    stage = await runJsonStage({
+      runtime,
+      modeName,
+      stageName,
+      roleName,
+      rolePrompt: promptForAttempt,
+      input,
+      expectedOutput
+    });
+    stage.retry = createRetryState(attempt, maxAttempts);
+
+    if (!shouldRetryInvalidJson(runtime, stage, attempt)) {
+      return stage;
+    }
+
+    await persistRetryFailure(runtime, {
+      stageName,
+      errorType: RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
+      attempt,
+      failure: {
+        roleName,
+        rawOutput: stage.run?.stdout ?? "",
+        stderr: stage.run?.stderr ?? "",
+        validation: stage.validation
+      }
+    });
+
+    attempt += 1;
+  }
+
+  return stage;
+}
+
+async function retryRevisionForValidatorFailure(runtime, architect, revision) {
+  const maxAttempts = getRetryLimit(
+    runtime,
+    RETRY_ERROR_TYPES.CONTRACT_VALIDATION_FAILURE
+  );
+  let attempt = 1;
+  let currentRevision = revision;
+  let contractValidation = await validateOutput({
+    mode: MODE_NAME,
+    output: currentRevision.finalArtifactCandidate
+  });
+
+  while (
+    !contractValidation.ok &&
+    shouldRetryWithPolicy(
+      runtime,
+      RETRY_ERROR_TYPES.CONTRACT_VALIDATION_FAILURE,
+      attempt
+    ) &&
+    attempt <= maxAttempts
+  ) {
+    await persistRetryFailure(runtime, {
+      stageName: currentRevision.finalCoder?.stage ?? STEP_KEYS.coderFinal,
+      errorType: RETRY_ERROR_TYPES.CONTRACT_VALIDATION_FAILURE,
+      attempt,
+      failure: {
+        rawOutput: currentRevision.finalCoder?.run?.stdout ?? "",
+        previousOutput: currentRevision.finalCoder?.parsed ?? null,
+        artifactCandidate: currentRevision.finalArtifactCandidate,
+        validation: contractValidation
+      }
+    });
+
+    const repairedCoder = await runCoderStage(runtime, architect, {
+      stageName: buildContractRetryStageName(attempt),
+      passName: "repair",
+      previousCoder: currentRevision.finalCoder,
+      revisionPlan: createContractRepairPlan(contractValidation),
+      repairPrompt: buildRetryRolePrompt({
+        basePrompt: "",
+        retryInstruction: buildRetryPolicyInstruction(
+          runtime,
+          RETRY_ERROR_TYPES.CONTRACT_VALIDATION_FAILURE,
+          contractValidation.errors
+        ),
+        repairPrompt: buildContractRepairPrompt({
+          roleName: "website_coder",
+          violations: contractValidation.errors,
+          previousOutput:
+            currentRevision.finalCoder?.parsed ??
+            currentRevision.finalCoder?.run?.stdout ??
+            null
+        })
+      })
+    });
+
+    currentRevision = {
+      ...currentRevision,
+      validatorRetryCoder: repairedCoder,
+      finalCoder: repairedCoder,
+      finalArtifactCandidate: buildWebsiteArtifact(repairedCoder.parsed),
+      summary: {
+        ...currentRevision.summary,
+        validator_repair_attempts: attempt,
+        validator_repair_stage: repairedCoder.stage
+      }
+    };
+    contractValidation = await validateOutput({
+      mode: MODE_NAME,
+      output: currentRevision.finalArtifactCandidate
+    });
+    attempt += 1;
+  }
+
+  return {
+    ...currentRevision,
+    contractValidation
+  };
+}
+
+async function persistRevisionArtifacts(runtime, revision) {
+  await persistWebsiteStep(runtime, STEP_KEYS.revisionSummary, revision.summary);
+
+  if (revision.revisedCoder) {
+    await persistWebsiteStep(runtime, STEP_KEYS.coderRevision, revision.revisedCoder);
+  }
+
+  if (revision.validatorRetryCoder) {
+    await persistWebsiteStep(runtime, revision.validatorRetryCoder.stage, revision.validatorRetryCoder);
+  }
+
+  await persistWebsiteStep(runtime, STEP_KEYS.coderFinal, revision.finalCoder);
+}
+
+async function persistWebsiteStep(runtime, stepName, data) {
+  return runtime.save(stepName, data);
+}
+
+async function persistRetryFailure(runtime, { stageName, errorType, attempt, failure }) {
+  return persistWebsiteStep(
+    runtime,
+    buildRetryFailureStepKey(stageName, errorType, attempt),
+    failure
+  );
+}
+
+function shouldRetryInvalidJson(runtime, stage, attempt) {
+  return (
+    hasInvalidJsonFailure(stage?.validation) &&
+    shouldRetryWithPolicy(runtime, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT, attempt)
+  );
+}
+
+function shouldRetryWithPolicy(runtime, errorType, attempt) {
+  if (runtime.retryPolicy?.shouldRetry) {
+    return runtime.retryPolicy.shouldRetry(errorType, attempt);
+  }
+
+  return false;
+}
+
+function getRetryLimit(runtime, errorType) {
+  if (runtime.retryPolicy?.maxAttemptsFor) {
+    return runtime.retryPolicy.maxAttemptsFor(errorType);
+  }
+
+  return runtime.retryPolicy?.maxAttempts ?? 1;
+}
+
+function hasInvalidJsonFailure(validation) {
+  return Boolean(
+    validation?.errors?.some((issue) =>
+      ["invalid_json_input", "empty_json_input", "invalid_json"].includes(issue?.code)
+    )
+  );
+}
+
+function buildRetryFailureStepKey(stageName, errorType, attempt) {
+  return `${normalizeStepKey(stageName)}_${normalizeStepKey(errorType)}_attempt_${attempt}_failed`;
+}
+
+function buildContractRetryStageName(attempt) {
+  return `coder_validator_retry_${attempt}`;
+}
+
+function buildRetryRolePrompt({ basePrompt, retryInstruction, repairPrompt }) {
+  return [basePrompt, retryInstruction, repairPrompt].filter(Boolean).join("\n\n");
+}
+
+function buildRetryPolicyInstruction(runtime, errorType, details) {
+  if (!runtime.retryPolicy?.buildRetryInstruction) {
+    return "";
+  }
+
+  return runtime.retryPolicy.buildRetryInstruction(errorType, details);
+}
+
+function createRetryState(attempts, maxAttempts) {
+  return {
+    attempts,
+    maxAttempts,
+    exhausted: attempts >= maxAttempts
+  };
+}
+
+function createContractRepairPlan(contractValidation) {
+  const issues = contractValidation?.errors?.map((issue) => issue.message).filter(Boolean) ?? [];
+
+  return {
+    maxAttempts: 1,
+    attempts: 1,
+    recommendation: "repair_contract",
+    issues,
+    instructions: issues,
+    shouldRevise: true
+  };
+}
+
+function normalizeStepKey(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function safeSerialize(value) {
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    return String(error?.message ?? error ?? "");
+  }
 }
 
 export const websiteModeStageOrder = STAGE_ORDER;
