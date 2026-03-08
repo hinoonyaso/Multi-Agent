@@ -322,7 +322,7 @@ export async function validateModeContract(mode, parsed) {
 
   if (contract.mode === "website") {
     const websiteFiles = validateWebsiteFiles(parsed?.files);
-    const websiteContract = validateWebsiteAgainstContract(parsed?.files, contract);
+    const websiteContract = validateWebsiteAgainstContract(parsed?.files, contract, parsed);
     const website = mergeValidationResults(websiteFiles, websiteContract);
 
     result.website = website;
@@ -469,7 +469,7 @@ export function validateWebsiteFiles(files) {
   return result;
 }
 
-export function validateWebsiteAgainstContract(files, contract) {
+export function validateWebsiteAgainstContract(files, contract, parsed = null) {
   const result = {
     pass: true,
     violations: [],
@@ -504,8 +504,7 @@ export function validateWebsiteAgainstContract(files, contract) {
 
   applyRequiredDeliverableChecks(result, fileFacts, requiredDeliverables);
   applyEntrypointContractChecks(result, fileFacts, requiredDeliverables.entrypoints);
-  applyRequiredFileTypeChecks(result, fileFacts, contract);
-  applyFrontendStructureChecks(result, fileFacts, contract);
+  applyValidationSchemaChecks(result, fileFacts, contract, parsed);
 
   return result;
 }
@@ -940,91 +939,121 @@ function applyEntrypointContractChecks(result, fileFacts, entrypointsContract) {
   }
 }
 
-function applyRequiredFileTypeChecks(result, fileFacts, contract) {
-  const contractText = buildWebsiteContractText(contract);
+function applyValidationSchemaChecks(result, fileFacts, contract, parsed) {
+  const schema = contract?.validation_schema;
+  if (!isPlainObject(schema)) {
+    return;
+  }
 
-  if (contractText.includes("html entry file") && !fileFacts.hasHtmlFile) {
+  const outputType = typeof parsed?.output_type === "string" ? parsed.output_type : null;
+
+  if (schema.required_entrypoints === true && !fileFacts.hasEntryCandidate) {
     result.pass = false;
     result.violations.push(
       createIssue(
-        "website_contract_missing_html_entry",
-        "Contract expects an HTML entry file, but none was delivered.",
+        "website_schema_missing_entrypoints",
+        "Schema requires entrypoints, but no valid entry file was found.",
         "files"
       )
     );
   }
 
-  if (
-    contractText.includes("dedicated css or js file") &&
-    !(fileFacts.hasCssFile || fileFacts.hasRuntimeScriptFile)
-  ) {
-    result.warnings.push(
-      createIssue(
-        "website_contract_missing_dedicated_assets",
-        "Contract references dedicated CSS or JS files, but no separate asset file was detected.",
-        "files"
-      )
-    );
-  }
-
-  if (
-    contractText.includes("include package metadata") &&
-    fileFacts.hasReactRuntimeEntry &&
-    !fileFacts.hasPackageJson
-  ) {
+  if (Array.isArray(schema.allowed_output_types) && outputType && !schema.allowed_output_types.includes(outputType)) {
     result.pass = false;
     result.violations.push(
       createIssue(
-        "website_contract_missing_package_metadata",
-        "Contract expects package metadata for app-style output, but 'package.json' was not delivered.",
-        "files"
+        "website_schema_invalid_output_type",
+        `Output type must be one of: ${schema.allowed_output_types.join(", ")}.`,
+        "output_type"
       )
     );
   }
-}
 
-function applyFrontendStructureChecks(result, fileFacts, contract) {
-  const contractText = buildWebsiteContractText(contract);
+  const mustHaveHtml = schema.must_have_html;
+  if (isPlainObject(mustHaveHtml) && mustHaveHtml.required === true) {
+    const whenMet =
+      outputType === mustHaveHtml.when ||
+      (!outputType && mustHaveHtml.when === "static_html_css_js");
+    if (whenMet && !fileFacts.hasHtmlFile) {
+      result.pass = false;
+      result.violations.push(
+        createIssue(
+          "website_schema_missing_html_entry",
+          "Schema expects an HTML entry file for this output type, but none was delivered.",
+          "files"
+        )
+      );
+    }
+  }
 
-  if (
-    contractText.includes("use a clear src-based component structure") &&
-    fileFacts.hasReactRuntimeEntry &&
-    !fileFacts.hasSrcDirectoryFile
-  ) {
+  if (schema.requires_package_json_if_react === true && fileFacts.hasReactRuntimeEntry && !fileFacts.hasPackageJson) {
     result.pass = false;
     result.violations.push(
       createIssue(
-        "website_contract_missing_src_structure",
-        "Contract expects a src-based app structure, but no files were delivered under 'src/'.",
+        "website_schema_missing_package_json",
+        "Schema requires package.json for React app output, but it was not delivered.",
         "files"
       )
     );
   }
 
-  if (
-    contractText.includes("must include styling") &&
-    !fileFacts.hasStyleMarker
-  ) {
+  if (schema.requires_style_evidence === true && !fileFacts.hasStyleMarker) {
     result.warnings.push(
       createIssue(
-        "website_contract_styling_not_detected",
-        "Contract requires styling, but no explicit styling file or inline style block was detected.",
+        "website_schema_styling_not_detected",
+        "Schema requires style evidence, but no explicit styling file or inline style block was detected.",
         "files"
       )
     );
   }
 
-  if (
-    contractText.includes("interaction logic") &&
-    !fileFacts.hasInteractionMarker
-  ) {
-    result.warnings.push(
+  if (schema.requires_src_structure_if_react === true && fileFacts.hasReactRuntimeEntry && !fileFacts.hasSrcDirectoryFile) {
+    result.pass = false;
+    result.violations.push(
       createIssue(
-        "website_contract_interaction_not_detected",
-        "Contract references interaction logic, but no explicit script marker was detected.",
+        "website_schema_missing_src_structure",
+        "Schema expects a src-based app structure for React, but no files were delivered under 'src/'.",
         "files"
       )
     );
+  }
+
+  if (schema.requires_interaction_evidence === true || (isPlainObject(schema.requires_interaction_evidence) && schema.requires_interaction_evidence.required)) {
+    if (!fileFacts.hasInteractionMarker) {
+      const severity = isPlainObject(schema.requires_interaction_evidence) && schema.requires_interaction_evidence.required
+        ? "violation"
+        : "warning";
+      if (severity === "violation") {
+        result.pass = false;
+        result.violations.push(
+          createIssue(
+            "website_schema_interaction_not_detected",
+            "Schema requires interaction evidence, but no explicit script or event handler was detected.",
+            "files"
+          )
+        );
+      } else {
+        result.warnings.push(
+          createIssue(
+            "website_schema_interaction_not_detected",
+            "Schema references interaction logic; verify that script markers or event handlers are present.",
+            "files"
+          )
+        );
+      }
+    }
+  }
+
+  if (schema.requires_dedicated_assets_for_non_trivial === true) {
+    if (fileFacts.count > 1 && !(fileFacts.hasCssFile || fileFacts.hasRuntimeScriptFile)) {
+      result.warnings.push(
+        createIssue(
+          "website_schema_missing_dedicated_assets",
+          "Schema recommends dedicated CSS or JS files for non-trivial output, but none were detected.",
+          "files"
+        )
+      );
+    }
   }
 }
 
@@ -1065,36 +1094,6 @@ function normalizeAllowedExamples(allowedExamples) {
     .filter((value) => typeof value === "string")
     .map((value) => normalizeWebsiteFilePath(value))
     .filter(Boolean);
-}
-
-function buildWebsiteContractText(contract) {
-  const parts = [
-    ...(Array.isArray(contract?.minimum_quality_checks) ? contract.minimum_quality_checks : []),
-    ...(Array.isArray(contract?.validation_rules) ? contract.validation_rules : []),
-    ...(Array.isArray(contract?.failure_conditions) ? contract.failure_conditions : []),
-    ...flattenContractObjectText(contract?.required_deliverables),
-    ...flattenContractObjectText(contract?.structural_expectations),
-    ...flattenContractObjectText(contract?.responsive_expectations),
-    ...flattenContractObjectText(contract?.code_organization_expectations)
-  ];
-
-  return parts.join("\n").toLowerCase();
-}
-
-function flattenContractObjectText(value) {
-  if (typeof value === "string") {
-    return [value];
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap((entry) => flattenContractObjectText(entry));
-  }
-
-  if (isPlainObject(value)) {
-    return Object.values(value).flatMap((entry) => flattenContractObjectText(entry));
-  }
-
-  return [];
 }
 
 function hasFrontendImplementation(fileFacts) {

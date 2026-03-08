@@ -16,6 +16,10 @@ import {
   createModeRuntime,
   runJsonStage
 } from "../shared/pipeline.js";
+import { executeGraph } from "../../core/graphExecutor.js";
+import { WEBSITE_MODE_GRAPH } from "./graph.js";
+import { runLightweightCritic } from "./lightweightCritic.js";
+import { captureRenderDiagnostics } from "./renderer.js";
 
 const MODE_NAME = "website";
 const DEFAULT_OUTPUT_TYPE = "static_html_css_js";
@@ -54,85 +58,96 @@ export async function runWebsiteMode(context = {}) {
   const emit = createModeEventEmitter(context.onEvent, runtime);
   const followUpArtifact = sanitizeFollowUpArtifact(runtime.input?.previousArtifact);
 
-  emitStageEvent(emit, "architect_started", "architect", "Generating website architecture.");
-  const architect = await runArchitectStage(runtime);
-  emitStageEvent(
-    emit,
-    "architect_completed",
-    "architect",
-    summarizeArchitectResult(architect)
-  );
-  await persistWebsiteStep(runtime, STEP_KEYS.architect, architect);
-
-  const firstPass = await runFirstPassGeneration(runtime, architect, emit);
-  await persistWebsiteStep(runtime, STEP_KEYS.coderFirstPass, firstPass.coder);
-
-  let critique;
-  let validatedRevision;
-
-  if (followUpArtifact) {
-    critique = { uiCritic: createFollowUpUiCritic() };
-    await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
-    emitStageEvent(
-      emit,
-      "ui_critic_completed",
-      "ui_critic",
-      "Follow-up fast path skipped the extra UI critique pass."
-    );
-
-    const followUpRevision = {
-      firstPassCoder: firstPass.coder,
-      firstPassArtifactCandidate: followUpArtifact,
-      revisedCoder: firstPass.coder,
-      finalCoder: firstPass.coder,
-      finalArtifactCandidate: firstPass.artifactCandidate,
-      summary: createFollowUpRevisionSummary(followUpArtifact, firstPass.artifactCandidate)
-    };
-
-    validatedRevision = await retryRevisionForValidatorFailure(
-      runtime,
-      architect,
-      followUpRevision,
-      emit
-    );
-  } else {
-    emitStageEvent(emit, "ui_critic_started", "ui_critic", "Reviewing first-pass implementation.");
-    critique = await runCritiqueStage(runtime, architect, firstPass);
-    emitStageEvent(
-      emit,
-      "ui_critic_completed",
-      "ui_critic",
-      summarizeCritiqueResult(critique.uiCritic)
-    );
-    await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
-
-    const revision = await runRevisionStage(runtime, architect, firstPass, critique, emit);
-    validatedRevision = await retryRevisionForValidatorFailure(
-      runtime,
-      architect,
-      revision,
-      emit
-    );
-  }
-  await persistRevisionArtifacts(runtime, validatedRevision);
-
-  emitStageEvent(emit, "validator_started", "validator", "Validating website artifact.");
-  const validator = await runValidatorStage(
+  const initialContext = {
     runtime,
-    architect,
-    critique.uiCritic,
-    validatedRevision
-  );
-  emitStageEvent(
     emit,
-    "validator_completed",
-    "validator",
-    summarizeValidatorResult(validator)
-  );
-  await persistWebsiteStep(runtime, STEP_KEYS.validator, validator);
-  await persistRevisionTrace(runtime, critique.uiCritic, validatedRevision, validator);
+    followUpArtifact,
+    input: runtime.input,
+    getSkipResult(nodeId, handlerKey, ctx) {
+      if (nodeId === "ui_critic" && handlerKey === "followUp") {
+        const lightweight = runLightweightCritic(ctx.followUpArtifact, ctx.firstPass?.artifactCandidate ?? ctx.artifactCandidate);
+        const uiCritic = {
+          stage: "ui_critic",
+          ok: lightweight.final_recommendation === "approve",
+          parsed: lightweight
+        };
+        return { uiCritic, critique: { uiCritic } };
+      }
+      return null;
+    }
+  };
 
-  return validatedRevision.finalArtifactCandidate;
+  const nodeRunners = {
+    architect: async (ctx) => {
+      emitStageEvent(ctx.emit, "architect_started", "architect", "Generating website architecture.");
+      const architect = await runArchitectStage(ctx.runtime);
+      emitStageEvent(ctx.emit, "architect_completed", "architect", summarizeArchitectResult(architect));
+      await persistWebsiteStep(ctx.runtime, STEP_KEYS.architect, architect);
+      return architect;
+    },
+    coder_first_pass: async (ctx) => {
+      const firstPass = await runFirstPassGeneration(ctx.runtime, ctx.architect, ctx.emit);
+      await persistWebsiteStep(ctx.runtime, STEP_KEYS.coderFirstPass, firstPass.coder);
+      return { coder: firstPass.coder, artifactCandidate: firstPass.artifactCandidate };
+    },
+    ui_critic: async (ctx) => {
+      emitStageEvent(ctx.emit, "ui_critic_started", "ui_critic", "Reviewing first-pass implementation.");
+      const critique = await runCritiqueStage(ctx.runtime, ctx.architect, ctx.firstPass);
+      emitStageEvent(ctx.emit, "ui_critic_completed", "ui_critic", summarizeCritiqueResult(critique.uiCritic));
+      await persistWebsiteStep(ctx.runtime, STEP_KEYS.uiCritic, critique.uiCritic);
+      return critique.uiCritic;
+    },
+    revision: async (ctx) => {
+      let revision;
+      if (ctx.followUpArtifact) {
+        const firstPass = ctx.firstPass;
+        await persistWebsiteStep(ctx.runtime, STEP_KEYS.uiCritic, ctx.uiCritic ?? createFollowUpUiCritic());
+        emitStageEvent(ctx.emit, "ui_critic_completed", "ui_critic", ctx.uiCritic?.parsed?.final_recommendation === "revise" ? "Lightweight critic found issues." : "Follow-up lightweight critique passed.");
+        revision = {
+          firstPassCoder: firstPass.coder,
+          firstPassArtifactCandidate: ctx.followUpArtifact,
+          revisedCoder: firstPass.coder,
+          finalCoder: firstPass.coder,
+          finalArtifactCandidate: firstPass.artifactCandidate,
+          summary: createFollowUpRevisionSummary(ctx.followUpArtifact, firstPass.artifactCandidate)
+        };
+      } else {
+        const firstPass = ctx.firstPass;
+        const critique = { uiCritic: ctx.uiCritic };
+        revision = await runRevisionStage(ctx.runtime, ctx.architect, firstPass, critique, ctx.emit);
+      }
+      const validatedRevision = await retryRevisionForValidatorFailure(
+        ctx.runtime,
+        ctx.architect,
+        revision,
+        ctx.emit
+      );
+      await persistRevisionArtifacts(ctx.runtime, validatedRevision);
+      return validatedRevision;
+    },
+    validator: async (ctx) => {
+      const validatedRevision = ctx.validatedRevision ?? ctx.revision;
+      const uiCritic = ctx.uiCritic;
+      emitStageEvent(ctx.emit, "validator_started", "validator", "Validating website artifact.");
+      const validator = await runValidatorStage(ctx.runtime, ctx.architect, uiCritic, validatedRevision);
+      emitStageEvent(ctx.emit, "validator_completed", "validator", summarizeValidatorResult(validator));
+      await persistWebsiteStep(ctx.runtime, STEP_KEYS.validator, validator);
+      await persistRevisionTrace(ctx.runtime, uiCritic, validatedRevision, validator);
+      return validator;
+    }
+  };
+
+  const finalContext = await executeGraph(WEBSITE_MODE_GRAPH, initialContext, nodeRunners, { emit });
+
+  const validatedRevision =
+    finalContext.validatedRevision ??
+    (finalContext.followUpArtifact
+      ? {
+          finalArtifactCandidate: finalContext.firstPass?.artifactCandidate ?? finalContext.artifactCandidate
+        }
+      : null);
+
+  return validatedRevision?.finalArtifactCandidate ?? null;
 }
 
 async function runArchitectStage(runtime) {
@@ -304,7 +319,31 @@ async function runCoderStage(
 }
 
 async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
-  const prompt = await loadModePrompt(MODE_NAME, "ui_critic");
+  let prompt = await loadModePrompt(MODE_NAME, "ui_critic");
+  const input = {
+    mode: MODE_NAME,
+    userRequest: runtime.input.userRequest,
+    architecture: architect.parsed,
+    implementation: artifactCandidate,
+    coder_output: coder.parsed
+  };
+
+  const diagnostics = await captureRenderDiagnostics(
+    artifactCandidate?.files ?? [],
+    artifactCandidate?.output_type ?? "static_html_css_js"
+  );
+
+  if (diagnostics.success) {
+    input.render_diagnostics = {
+      screenshot_base64: diagnostics.screenshotBase64,
+      console_errors: diagnostics.consoleErrors,
+      mobile_viewport_issues: diagnostics.mobileViewportIssues,
+      url: diagnostics.url
+    };
+    prompt =
+      `[RENDER-BASED REVIEW] Actual page render was captured. Use the screenshot (as base64 PNG in render_diagnostics.screenshot_base64), console errors (render_diagnostics.console_errors), and mobile viewport issues (render_diagnostics.mobile_viewport_issues) to evaluate the real rendered UI. Prioritize findings from actual render over code inference.\n\n` +
+      prompt;
+  }
 
   return runWebsiteJsonStage({
     runtime,
@@ -312,13 +351,7 @@ async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
     stageName: "ui_critic",
     roleName: "website_ui_critic",
     rolePrompt: prompt,
-    input: {
-      mode: MODE_NAME,
-      userRequest: runtime.input.userRequest,
-      architecture: architect.parsed,
-      implementation: artifactCandidate,
-      coder_output: coder.parsed
-    },
+    input,
     expectedOutput: {
       issues: [],
       passes: [],
@@ -705,58 +738,48 @@ async function runWebsiteJsonStage({
   expectedOutput
 }) {
   const maxAttempts = getRetryLimit(runtime, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT);
-  let attempt = 1;
-  let stage = null;
+  const retryConfig = {
+    errorType: RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
+    maxAttempts,
+    onRetry: async (attempt, failure) => {
+      await persistRetryFailure(runtime, {
+        stageName,
+        errorType: RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
+        attempt,
+        failure: {
+          roleName,
+          rawOutput: failure?.run?.stdout ?? "",
+          stderr: failure?.run?.stderr ?? "",
+          validation: failure?.validation
+        }
+      });
+    },
+    buildRepairPrompt: (stage, attempt) =>
+      buildRetryRolePrompt({
+        basePrompt: rolePrompt,
+        retryInstruction: buildRetryPolicyInstruction(
+          runtime,
+          RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
+          { stage: stageName, roleName }
+        ),
+        repairPrompt: buildInvalidJsonRepairPrompt({
+          roleName,
+          rawOutput: stage?.run?.stdout ?? "",
+          expectedSchemaSummary: safeSerialize(expectedOutput)
+        })
+      })
+  };
 
-  while (attempt <= maxAttempts) {
-    const promptForAttempt =
-      attempt === 1
-        ? rolePrompt
-        : buildRetryRolePrompt({
-            basePrompt: rolePrompt,
-            retryInstruction: buildRetryPolicyInstruction(
-              runtime,
-              RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
-              { stage: stageName, roleName }
-            ),
-            repairPrompt: buildInvalidJsonRepairPrompt({
-              roleName,
-              rawOutput: stage?.run?.stdout ?? "",
-              expectedSchemaSummary: safeSerialize(expectedOutput)
-            })
-          });
-
-    stage = await runJsonStage({
-      runtime,
-      modeName,
-      stageName,
-      roleName,
-      rolePrompt: promptForAttempt,
-      input,
-      expectedOutput
-    });
-    stage.retry = createRetryState(attempt, maxAttempts);
-
-    if (!shouldRetryInvalidJson(runtime, stage, attempt)) {
-      return stage;
-    }
-
-    await persistRetryFailure(runtime, {
-      stageName,
-      errorType: RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
-      attempt,
-      failure: {
-        roleName,
-        rawOutput: stage.run?.stdout ?? "",
-        stderr: stage.run?.stderr ?? "",
-        validation: stage.validation
-      }
-    });
-
-    attempt += 1;
-  }
-
-  return stage;
+  return runJsonStage({
+    runtime,
+    modeName,
+    stageName,
+    roleName,
+    rolePrompt,
+    input,
+    expectedOutput,
+    retryConfig
+  });
 }
 
 async function retryRevisionForValidatorFailure(runtime, architect, revision, emit) {
@@ -888,13 +911,6 @@ async function persistRetryFailure(runtime, { stageName, errorType, attempt, fai
   );
 }
 
-function shouldRetryInvalidJson(runtime, stage, attempt) {
-  return (
-    hasInvalidJsonFailure(stage?.validation) &&
-    shouldRetryWithPolicy(runtime, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT, attempt)
-  );
-}
-
 function shouldRetryWithPolicy(runtime, errorType, attempt) {
   if (runtime.retryPolicy?.shouldRetry) {
     return runtime.retryPolicy.shouldRetry(errorType, attempt);
@@ -937,14 +953,6 @@ function buildRetryPolicyInstruction(runtime, errorType, details) {
   }
 
   return runtime.retryPolicy.buildRetryInstruction(errorType, details);
-}
-
-function createRetryState(attempts, maxAttempts) {
-  return {
-    attempts,
-    maxAttempts,
-    exhausted: attempts >= maxAttempts
-  };
 }
 
 function createContractRepairPlan(contractValidation) {

@@ -5,6 +5,7 @@ import {
   saveStep
 } from "../../core/stateStore.js";
 import { validateOutput } from "../../core/validator.js";
+import { RETRY_ERROR_TYPES } from "../../core/retryPolicy.js";
 
 export async function createModeRuntime(context = {}) {
   const input = context.input ?? {};
@@ -24,6 +25,26 @@ export async function createModeRuntime(context = {}) {
   };
 }
 
+/**
+ * @typedef {Object} RetryConfig
+ * @property {string} [errorType] - RETRY_ERROR_TYPES value
+ * @property {number} [maxAttempts] - Max retries for this error type
+ * @property {Function} [onRetry] - Async (attempt, failure) => void for persistence
+ * @property {Function} [buildRepairPrompt] - (failure, attempt) => string
+ */
+
+/**
+ * Run a JSON-emitting stage with optional retry on invalid JSON.
+ * @param {Object} params
+ * @param {Object} params.runtime - Mode runtime
+ * @param {string} params.modeName - Mode name
+ * @param {string} params.stageName - Stage name
+ * @param {string|null} params.roleName - Validator role name
+ * @param {string} params.rolePrompt - Prompt text
+ * @param {Object} params.input - Stage input
+ * @param {Object} params.expectedOutput - Expected schema for repair prompts
+ * @param {RetryConfig|RetryConfig[]} [params.retryConfig] - Retry configuration
+ */
 export async function runJsonStage({
   runtime,
   modeName,
@@ -31,38 +52,73 @@ export async function runJsonStage({
   roleName = null,
   rolePrompt,
   input,
-  expectedOutput
+  expectedOutput,
+  retryConfig = null
 }) {
-  const run = await runtime.codexRunner.run({
-    stage: `${modeName}:${stageName}`,
-    systemPrompt: runtime.systemPrompt,
-    rolePrompt,
-    input,
-    expectedOutput,
-    cwd: runtime.input.workingDir
-  });
-  const validation = roleName
-    ? await validateOutput({ roleName, output: run })
-    : await validateOutput({ output: run.stdout ?? "" });
+  const invalidJsonConfig = normalizeRetryConfig(retryConfig, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT);
+  const maxAttempts = invalidJsonConfig?.maxAttempts ?? 1;
+  let attempt = 1;
+  let stage = null;
 
-  return {
-    stage: stageName,
-    ok: run.ok && validation.ok,
-    run,
-    parsed: validation.parsed ?? null,
-    validation,
-    retry: createRetryMetadata(runtime)
-  };
+  while (attempt <= maxAttempts) {
+    const promptForAttempt =
+      attempt === 1
+        ? rolePrompt
+        : (invalidJsonConfig?.buildRepairPrompt?.(stage, attempt) ?? rolePrompt);
+
+    const run = await runtime.codexRunner.run({
+      stage: `${modeName}:${stageName}`,
+      systemPrompt: runtime.systemPrompt,
+      rolePrompt: promptForAttempt,
+      input,
+      expectedOutput,
+      cwd: runtime.input?.workingDir ?? process.cwd()
+    });
+
+    const validation = roleName
+      ? await validateOutput({ roleName, output: run })
+      : await validateOutput({ output: run.stdout ?? "" });
+
+    stage = {
+      stage: stageName,
+      ok: run.ok && validation.ok,
+      run,
+      parsed: validation.parsed ?? null,
+      validation,
+      retry: {
+        attempts: attempt,
+        maxAttempts,
+        exhausted: attempt >= maxAttempts
+      }
+    };
+
+    if (!hasInvalidJsonFailure(stage?.validation) || attempt >= maxAttempts) {
+      return stage;
+    }
+
+    if (invalidJsonConfig?.onRetry) {
+      await invalidJsonConfig.onRetry(attempt, stage);
+    }
+
+    attempt += 1;
+  }
+
+  return stage;
 }
 
-function createRetryMetadata(runtime) {
-  const maxAttempts = runtime.retryPolicy?.maxAttempts ?? 1;
+function normalizeRetryConfig(retryConfig, errorType) {
+  if (!retryConfig) return null;
+  if (Array.isArray(retryConfig)) {
+    const match = retryConfig.find((c) => c?.errorType === errorType);
+    return match ?? null;
+  }
+  return retryConfig;
+}
 
-  return {
-    attempts: 1,
-    maxAttempts,
-    // TODO: Apply retryPolicy here once mode stages support targeted prompt
-    // revisions and deterministic replay rules.
-    exhausted: 1 >= maxAttempts
-  };
+function hasInvalidJsonFailure(validation) {
+  return Boolean(
+    validation?.errors?.some((issue) =>
+      ["invalid_json_input", "empty_json_input", "invalid_json"].includes(issue?.code)
+    )
+  );
 }

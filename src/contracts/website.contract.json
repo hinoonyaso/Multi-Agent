@@ -1,5 +1,15 @@
 {
   "mode": "website",
+  "validation_schema": {
+    "required_entrypoints": true,
+    "allowed_output_types": ["static_html_css_js", "react_vite_app"],
+    "must_have_html": { "when": "static_html_css_js", "required": true },
+    "requires_package_json_if_react": true,
+    "requires_style_evidence": true,
+    "requires_interaction_evidence": { "when": "interaction_implied", "required": false },
+    "requires_src_structure_if_react": true,
+    "requires_dedicated_assets_for_non_trivial": true
+  },
   "version": "1.0.0",
   "artifact_kind": "implementation_ready_frontend",
   "description": "Strict contract for website mode outputs. The result must be a buildable, implementation-ready frontend artifact, not a plan, outline, or partial draft.",

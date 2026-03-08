@@ -19,7 +19,10 @@ export const RUN_STATUS = Object.freeze({
 
 export async function createRunState(initialInput) {
   const createdAt = new Date().toISOString();
-  const runId = `${formatTimestamp(createdAt)}-${randomBytes(3).toString("hex")}`;
+  const runId =
+    typeof initialInput?.runId === "string" && initialInput.runId.trim()
+      ? initialInput.runId.trim()
+      : `${formatTimestamp(createdAt)}-${randomBytes(3).toString("hex")}`;
   const runDir = path.join(RUNS_ROOT, runId);
 
   await mkdir(path.join(runDir, STEPS_DIRNAME), { recursive: true });

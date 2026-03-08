@@ -72,7 +72,6 @@ export function createRoutes(options = {}) {
         previousRequest: previousRequest?.trim() || null,
         previousArtifact: previousArtifact ? sanitizePreviousArtifact(previousArtifact) : null
       },
-      pipelineRunId: null,
       lastEvent: null,
       result: null,
       error: null
@@ -89,7 +88,6 @@ export function createRoutes(options = {}) {
     const onEvent = (event) => {
       const websocketEvent = normalizeWebsocketEvent(event, runRecord);
 
-      runRecord.pipelineRunId = event?.runId ?? runRecord.pipelineRunId;
       runRecord.lastEvent = websocketEvent;
       runRecord.updatedAt = websocketEvent.timestamp;
       runRecord.status = deriveRunStatus(websocketEvent, runRecord.status);
@@ -98,6 +96,7 @@ export function createRoutes(options = {}) {
     };
 
     void executeRun({
+      runId,
       userRequest: runRecord.input.userRequest,
       modeHint: runRecord.input.modeHint,
       previousRunId: runRecord.input.previousRunId,
@@ -107,7 +106,6 @@ export function createRoutes(options = {}) {
     })
       .then((result) => {
         runRecord.result = result;
-        runRecord.pipelineRunId = result?.state?.runId ?? runRecord.pipelineRunId;
         runRecord.completedAt = new Date().toISOString();
 
         if (runRecord.status !== "failed") {
@@ -142,8 +140,7 @@ export function createRoutes(options = {}) {
     try {
       const requestedRunId = request.params.runId;
       const runRecord = runs.get(requestedRunId) ?? null;
-      const persistedRunId = resolvePersistedRunId(runRecord, requestedRunId);
-      const persistedState = await loadPersistedState(persistedRunId);
+      const persistedState = await loadPersistedState(requestedRunId);
 
       if (!runRecord && !persistedState) {
         response.status(404).json({ error: "Run not found." });
@@ -210,7 +207,7 @@ function normalizeWebsocketEvent(event, runRecord) {
     ...event,
     type: mapEventTypeForWebsocket(eventType),
     eventType,
-    pipelineRunId: event?.runId ?? runRecord.pipelineRunId ?? null,
+    runId: event?.runId ?? runRecord?.runId ?? null,
     timestamp: event?.timestamp ?? new Date().toISOString()
   };
 }
@@ -251,18 +248,6 @@ function deriveRunStatus(event, currentStatus) {
   return currentStatus;
 }
 
-function resolvePersistedRunId(runRecord, requestedRunId) {
-  if (typeof runRecord?.pipelineRunId === "string" && runRecord.pipelineRunId.trim() !== "") {
-    return runRecord.pipelineRunId;
-  }
-
-  if (typeof runRecord?.result?.state?.runId === "string" && runRecord.result.state.runId.trim() !== "") {
-    return runRecord.result.state.runId;
-  }
-
-  return requestedRunId;
-}
-
 async function loadPersistedState(runId) {
   if (typeof runId !== "string" || runId.trim() === "") {
     return null;
@@ -287,16 +272,10 @@ async function loadPersistedState(runId) {
 function buildRunSummary({ requestedRunId, runRecord, persistedState }) {
   const savedSteps = getSavedStepOutputs(persistedState);
   const finalResult = runRecord?.result ?? persistedState?.final ?? null;
-  const pipelineRunId =
-    runRecord?.pipelineRunId ??
-    runRecord?.result?.state?.runId ??
-    persistedState?.runId ??
-    null;
 
   return compactObject({
     runId: requestedRunId,
     status: deriveSummaryStatus({ runRecord, persistedState, finalResult }),
-    pipelineRunId,
     input: runRecord?.input ?? persistedState?.input ?? null,
     timestamps: compactObject({
       acceptedAt: runRecord?.acceptedAt ?? null,

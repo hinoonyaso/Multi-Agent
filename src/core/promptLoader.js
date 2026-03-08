@@ -24,6 +24,24 @@ export async function loadModePrompt(mode, name) {
   );
 }
 
+export async function loadAgentPrompt(agent) {
+  if (!agent?.promptPath || typeof agent.promptPath !== "string") {
+    return null;
+  }
+
+  const parts = agent.promptPath.split(":");
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const [kind, name] = parts;
+  if (kind === "roles") {
+    return loadRolePrompt(name);
+  }
+
+  return loadModePrompt(kind, name);
+}
+
 export async function loadContract(mode) {
   const filePath = resolveWithin(
     CONTRACTS_ROOT,

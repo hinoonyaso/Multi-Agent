@@ -24,6 +24,7 @@ import { validateOutput } from "./validator.js";
 const DEFAULT_MODE = "website";
 
 export async function runPipeline({
+  runId,
   userRequest,
   modeHint,
   previousRunId,
@@ -34,6 +35,7 @@ export async function runPipeline({
 } = {}) {
   return runPipelineInternal(
     normalizePipelineInput({
+      runId,
       userRequest,
       modeHint,
       previousRunId,
@@ -287,7 +289,8 @@ function normalizePipelineInput({
   previousRunId,
   previousRequest,
   previousArtifact,
-  workingDir
+  workingDir,
+  runId
 } = {}) {
   return {
     userRequest: userRequest ?? "",
@@ -295,7 +298,8 @@ function normalizePipelineInput({
     previousRunId: previousRunId ?? null,
     previousRequest: previousRequest ?? null,
     previousArtifact: previousArtifact ?? null,
-    workingDir: workingDir ?? process.cwd()
+    workingDir: workingDir ?? process.cwd(),
+    runId: runId ?? null
   };
 }
 
@@ -306,7 +310,8 @@ function normalizeLegacyInput(input = {}) {
     previousRunId: input.previousRunId ?? input.followUpToRunId ?? null,
     previousRequest: input.previousRequest ?? null,
     previousArtifact: input.previousArtifact ?? null,
-    workingDir: input.workingDir
+    workingDir: input.workingDir,
+    runId: input.runId ?? null
   });
 }
 
@@ -316,20 +321,42 @@ async function runRoutingStage({ codexRunner, input }) {
     modeHint: input.modeHint
   });
   const expectedOutput = {
-    mode: input.modeHint ?? DEFAULT_MODE,
-    note: "TODO: replace placeholder routing output parsing with structured router results."
+    primary_mode: input.modeHint ?? DEFAULT_MODE,
+    task_type: "string",
+    requires_research: false,
+    selected_agents: ["planner", "validator", "finalizer"],
+    reasoning_summary: [],
+    risks: []
   };
   const prompt = await buildRouterPrompt({
     context,
     expectedOutput
   });
 
-  return codexRunner.run({
+  const run = await codexRunner.run({
     stage: "router",
     prompt,
     input: context,
     expectedOutput
   });
+
+  const parsed = parseRouterOutput(run);
+  return {
+    ...run,
+    parsed,
+    mode: parsed?.primary_mode ?? input.modeHint ?? DEFAULT_MODE
+  };
+}
+
+function parseRouterOutput(run) {
+  if (!run?.stdout) return null;
+  try {
+    const text = String(run.stdout).trim();
+    const json = text.replace(/^```json\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 }
 
 async function runPlanningStage({
@@ -345,9 +372,11 @@ async function runPlanningStage({
     contract
   });
   const expectedOutput = {
-    selectedMode,
-    steps: [],
-    note: "TODO: planner should emit a structured execution plan for the target mode."
+    mode: selectedMode,
+    execution_steps: [],
+    artifact_contract: { target_output: "", quality_bar: [], required_sections_or_parts: [] },
+    open_questions_to_resolve: [],
+    risks: []
   };
   const prompt = await buildPlannerPrompt({
     context,
@@ -387,14 +416,12 @@ async function finalizeRun({
     mode: selectedMode,
     input: finalizerContext
   });
+  const deliverableOutput = buildDeliverableExpectedOutput(selectedMode, pipelineResult);
   const packagingResult = await codexRunner.run({
     stage: "finalizer",
     prompt: finalizerPrompt,
     input: finalizerContext,
-    expectedOutput: {
-      artifact: pipelineResult,
-      note: "TODO: replace placeholder packaging with deliverable-specific final output formatting."
-    }
+    expectedOutput: deliverableOutput
   });
   const finalizerCompletedAt = new Date().toISOString();
   const finalizerTiming = {
@@ -417,11 +444,34 @@ async function finalizeRun({
   };
 }
 
+function buildDeliverableExpectedOutput(mode, pipelineResult) {
+  if (mode === "website") {
+    return {
+      final_mode: "website",
+      deliverables: [
+        {
+          type: "website_artifact",
+          artifact: pipelineResult,
+          entrypoints: pipelineResult?.entrypoints ?? [],
+          file_count: pipelineResult?.files?.length ?? 0
+        }
+      ],
+      delivery_notes: []
+    };
+  }
+  return {
+    final_mode: mode,
+    deliverables: [{ type: "artifact", artifact: pipelineResult }],
+    delivery_notes: []
+  };
+}
+
 function resolveSelectedMode({ routing, modeHint }) {
   const routedMode =
     routing?.mode ??
-    routing?.output?.mode ??
-    routing?.request?.expectedOutput?.mode;
+    routing?.parsed?.primary_mode ??
+    routing?.output?.primary_mode ??
+    routing?.request?.expectedOutput?.primary_mode;
 
   return routedMode ?? modeHint ?? DEFAULT_MODE;
 }
