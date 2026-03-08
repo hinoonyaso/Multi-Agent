@@ -7,8 +7,7 @@ import {
   runWebsiteJsonStage,
   persistWebsiteStep,
   emitStageEvent,
-  summarizeCritiqueResult,
-  createFollowUpUiCritic
+  summarizeCritiqueResult
 } from "./shared.js";
 import { captureRenderDiagnostics } from "../renderer.js";
 import { runLightweightCritic } from "../lightweightCritic.js";
