@@ -1,7 +1,9 @@
 import {
+  loadAgentPrompt,
   loadModePrompt,
   loadRolePrompt
 } from "../../core/promptLoader.js";
+import { getAgent } from "../../agents/registry.js";
 import {
   validateOutput
 } from "../../core/validator.js";
@@ -151,7 +153,8 @@ export async function runWebsiteMode(context = {}) {
 }
 
 async function runArchitectStage(runtime) {
-  const prompt = await loadModePrompt(MODE_NAME, "architect");
+  const agent = getAgent("website_architect");
+  const prompt = agent ? await loadAgentPrompt(agent) : await loadModePrompt(MODE_NAME, "architect");
   const followUpContext = getFollowUpContext(runtime.input);
 
   return runWebsiteJsonStage({
@@ -177,7 +180,8 @@ async function runArchitectStage(runtime) {
         responsive_notes: []
       },
       implementation_notes: []
-    }
+    },
+    agent
   });
 }
 
@@ -264,7 +268,9 @@ async function runCoderStage(
     emit = null
   } = {}
 ) {
-  const prompt = await loadModePrompt(MODE_NAME, "coder");
+  const agent = getAgent("website_coder");
+  const basePrompt = agent ? await loadAgentPrompt(agent) : await loadModePrompt(MODE_NAME, "coder");
+  const prompt = buildRetryRolePrompt({ basePrompt, repairPrompt });
   const followUpArtifact = sanitizeFollowUpArtifact(runtime.input?.previousArtifact);
 
   emitStageEvent(
@@ -279,10 +285,7 @@ async function runCoderStage(
     modeName: MODE_NAME,
     stageName,
     roleName: "website_coder",
-    rolePrompt: buildRetryRolePrompt({
-      basePrompt: prompt,
-      repairPrompt
-    }),
+    rolePrompt: prompt,
     input: {
       mode: MODE_NAME,
       userRequest: runtime.input.userRequest,
@@ -305,7 +308,8 @@ async function runCoderStage(
       ],
       build_notes: [],
       known_limitations: []
-    }
+    },
+    agent
   });
 
   emitStageEvent(
@@ -319,7 +323,8 @@ async function runCoderStage(
 }
 
 async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
-  let prompt = await loadModePrompt(MODE_NAME, "ui_critic");
+  const agent = getAgent("website_ui_critic");
+  let prompt = agent ? await loadAgentPrompt(agent) : await loadModePrompt(MODE_NAME, "ui_critic");
   const input = {
     mode: MODE_NAME,
     userRequest: runtime.input.userRequest,
@@ -356,7 +361,8 @@ async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
       issues: [],
       passes: [],
       final_recommendation: "approve"
-    }
+    },
+    agent
   });
 }
 
@@ -366,7 +372,8 @@ async function runValidatorStage(
   uiCritic,
   revision
 ) {
-  const prompt = await loadRolePrompt("validator");
+  const agent = getAgent("website_validator");
+  const prompt = agent ? await loadAgentPrompt(agent) : await loadRolePrompt("validator");
   const contractValidation = await validateOutput({
     mode: MODE_NAME,
     output: revision.finalArtifactCandidate
@@ -403,7 +410,8 @@ async function runValidatorStage(
       next_action: validatorDecision.needsRevision
         ? "Request a targeted revision from the coder stage."
         : "Proceed to final packaging."
-    }
+    },
+    agent
   });
 
   return {
@@ -735,9 +743,12 @@ async function runWebsiteJsonStage({
   roleName,
   rolePrompt,
   input,
-  expectedOutput
+  expectedOutput,
+  agent = null
 }) {
-  const maxAttempts = getRetryLimit(runtime, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT);
+  const runtimeLimit = getRetryLimit(runtime, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT);
+  const agentLimit = agent?.retryPolicy?.[RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT];
+  const maxAttempts = agentLimit ?? runtimeLimit;
   const retryConfig = {
     errorType: RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT,
     maxAttempts,
@@ -778,7 +789,8 @@ async function runWebsiteJsonStage({
     rolePrompt,
     input,
     expectedOutput,
-    retryConfig
+    retryConfig,
+    agent
   });
 }
 

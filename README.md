@@ -1,11 +1,11 @@
-# Single-Model Multi-Agent Skeleton
+# Multi-Agent Orchestration System
 
-Initial project skeleton for a Node.js ESM orchestration system that runs
-Codex CLI subprocesses against `gpt-5.4`.
+Node.js ESM orchestration system that runs Codex CLI subprocesses against `gpt-5.4`.
+Pipeline stages use agent definitions from the registry; graph-based execution supports declarative flows, retries, and conditional edges.
 
 ## Supported Modes
 
-- `website`
+- `website` (production-ready)
 - `docx`
 - `slide`
 - `sheet`
@@ -13,19 +13,27 @@ Codex CLI subprocesses against `gpt-5.4`.
 
 ## Layout
 
-- `src/core`: orchestration runtime placeholders
-- `src/agents`: future agent definitions
+- `src/core`: orchestration runtime, graph executor, state store, validator
+- `src/agents`: agent definitions (website mode: architect, coder, ui_critic, validator)
 - `src/modes`: mode-specific pipeline entry points
-- `src/contracts`: output contract placeholders
+- `src/contracts`: output contract definitions
 - `src/prompts`: core, role, and mode prompt files
-- `tests`: test placeholders
+- `tests`: smoke and unit tests
 - `runs`: local run artifacts
 - `logs`: local execution logs
 - `docs`: project notes
 
 ## Status
 
-Scaffold only. Full orchestration logic is intentionally not implemented yet.
+Website mode production-ready; other modes in development.
+
+## Implemented Features
+
+- **Graph-based declarative pipeline** (`graphExecutor`): nodes with `contextKey`/`contextMerge`, pluggable `edgeConditionEvaluators` and `skipConditionEvaluators`
+- **Render-based UI critic**: Playwright, screenshot, console capture, mobile viewport
+- **Schema-based contract validation**: mode contracts, role schemas, structural checks
+- **Lightweight critic for follow-up path**: skips full UI critic when `previousArtifact` is provided
+- **Unified runId**: API `runId` is passed through to pipeline; persisted state uses the same ID
 
 ## Running the Local Web UI
 

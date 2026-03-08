@@ -44,6 +44,7 @@ export async function createModeRuntime(context = {}) {
  * @param {Object} params.input - Stage input
  * @param {Object} params.expectedOutput - Expected schema for repair prompts
  * @param {RetryConfig|RetryConfig[]} [params.retryConfig] - Retry configuration
+ * @param {Object} [params.agent] - Agent from registry (enriches request with model, timeoutMs)
  */
 export async function runJsonStage({
   runtime,
@@ -53,7 +54,8 @@ export async function runJsonStage({
   rolePrompt,
   input,
   expectedOutput,
-  retryConfig = null
+  retryConfig = null,
+  agent = null
 }) {
   const invalidJsonConfig = normalizeRetryConfig(retryConfig, RETRY_ERROR_TYPES.INVALID_JSON_OUTPUT);
   const maxAttempts = invalidJsonConfig?.maxAttempts ?? 1;
@@ -66,14 +68,16 @@ export async function runJsonStage({
         ? rolePrompt
         : (invalidJsonConfig?.buildRepairPrompt?.(stage, attempt) ?? rolePrompt);
 
-    const run = await runtime.codexRunner.run({
+    const baseRequest = {
       stage: `${modeName}:${stageName}`,
       systemPrompt: runtime.systemPrompt,
       rolePrompt: promptForAttempt,
       input,
       expectedOutput,
       cwd: runtime.input?.workingDir ?? process.cwd()
-    });
+    };
+    const request = agent?.enrichRequest ? agent.enrichRequest(baseRequest) : baseRequest;
+    const run = await runtime.codexRunner.run(request);
 
     const validation = roleName
       ? await validateOutput({ roleName, output: run })

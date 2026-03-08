@@ -20,7 +20,7 @@ export function getNextNode(graph, currentNodeId, result, context) {
   }
 
   for (const edge of edges) {
-    if (evaluateEdgeCondition(edge, result, context)) {
+    if (evaluateEdgeCondition(graph, edge, result, context)) {
       return edge.to;
     }
   }
@@ -31,17 +31,23 @@ export function getNextNode(graph, currentNodeId, result, context) {
 
 /**
  * Check if a node should be skipped.
+ * Uses graph.skipConditionEvaluators when provided, else falls back to built-in conditions.
+ * @param {Object} graph - Graph with optional skipConditionEvaluators
  * @param {Object} node - Node config
  * @param {Object} context - Execution context
  * @returns {boolean} True if node should be skipped
  */
-export function shouldSkipNode(node, context) {
+export function shouldSkipNode(graph, node, context) {
   if (!node?.skipCondition || !context) {
     return false;
   }
 
-  const condition = node.skipCondition;
-  if (condition === "followUp") {
+  const evaluators = graph?.skipConditionEvaluators;
+  if (evaluators && typeof evaluators[node.skipCondition] === "function") {
+    return evaluators[node.skipCondition](node, context);
+  }
+
+  if (node.skipCondition === "followUp") {
     return Boolean(context.followUpArtifact);
   }
 
@@ -87,7 +93,7 @@ export async function executeGraph(graph, initialContext, nodeRunners, options =
       break;
     }
 
-    if (shouldSkipNode(node, context)) {
+    if (shouldSkipNode(graph, node, context)) {
       const skipResult = getSkipHandlerResult(graph, currentNodeId, context);
       if (skipResult) {
         Object.assign(context, skipResult);
@@ -100,7 +106,7 @@ export async function executeGraph(graph, initialContext, nodeRunners, options =
     }
 
     lastResult = await runner(context);
-    mergeResultIntoContext(context, currentNodeId, lastResult);
+    mergeResultIntoContext(graph, node, context, currentNodeId, lastResult);
 
     const nextId = getNextNode(graph, currentNodeId, lastResult, context);
     if (!nextId) {
@@ -113,10 +119,16 @@ export async function executeGraph(graph, initialContext, nodeRunners, options =
   return context;
 }
 
-function evaluateEdgeCondition(edge, result, context) {
+function evaluateEdgeCondition(graph, edge, result, context) {
   if (!edge.condition) {
     return true;
   }
+
+  const evaluators = graph?.edgeConditionEvaluators;
+  if (evaluators && typeof evaluators[edge.condition] === "function") {
+    return evaluators[edge.condition](edge, result, context);
+  }
+
   if (edge.condition === "revise") {
     return result?.parsed?.final_recommendation === "revise";
   }
@@ -149,7 +161,42 @@ function getSkipTargetNode(graph, skippedNodeId) {
   return null;
 }
 
-function mergeResultIntoContext(context, nodeId, result) {
+function mergeResultIntoContext(graph, node, context, nodeId, result) {
+  if (node?.contextKey) {
+    context[node.contextKey] = result;
+    return;
+  }
+
+  if (node?.contextMerge && typeof node.contextMerge === "object") {
+    for (const [key, spec] of Object.entries(node.contextMerge)) {
+      if (typeof spec === "function") {
+        context[key] = spec(result, context);
+      } else if (typeof spec === "string") {
+        context[key] = getByPath(result, spec);
+      }
+    }
+    return;
+  }
+
+  applyDefaultMerge(context, nodeId, result);
+}
+
+function getByPath(obj, path) {
+  if (path === "result" || path === "") {
+    return obj;
+  }
+  if (!path?.startsWith("result.")) {
+    return obj;
+  }
+  const keys = path.slice(7).split(".");
+  let cur = obj;
+  for (const k of keys) {
+    cur = cur?.[k];
+  }
+  return cur;
+}
+
+function applyDefaultMerge(context, nodeId, result) {
   if (nodeId === "architect") {
     context.architect = result;
   } else if (nodeId === "coder_first_pass") {
