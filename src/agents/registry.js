@@ -1,8 +1,16 @@
-import { WEBSITE_AGENTS } from "./website/index.js";
+import { websiteArchitectAgent } from "./websiteArchitect.js";
+import { websiteCoderAgent } from "./websiteCoder.js";
+import { websiteUiCriticAgent } from "./websiteUiCritic.js";
+import { websiteValidatorAgent } from "./websiteValidator.js";
 
-const AGENT_MAP = new Map([
-  ...Object.entries(WEBSITE_AGENTS)
-]);
+const WEBSITE_AGENTS = Object.freeze({
+  website_architect: websiteArchitectAgent,
+  website_coder: websiteCoderAgent,
+  website_ui_critic: websiteUiCriticAgent,
+  website_validator: websiteValidatorAgent
+});
+
+const AGENT_MAP = new Map(Object.entries(WEBSITE_AGENTS));
 
 const MODE_AGENTS = Object.freeze({
   website: Object.keys(WEBSITE_AGENTS)
@@ -14,9 +22,7 @@ const MODE_AGENTS = Object.freeze({
  * @returns {Object|null} Agent or null if not found
  */
 export function getAgent(agentId) {
-  if (typeof agentId !== "string" || !agentId.trim()) {
-    return null;
-  }
+  if (typeof agentId !== "string" || !agentId.trim()) return null;
   return AGENT_MAP.get(agentId.trim()) ?? null;
 }
 
@@ -26,8 +32,6 @@ export function getAgent(agentId) {
  * @returns {string[]} Agent ids for the mode
  */
 export function listAgentsByMode(mode) {
-  if (typeof mode !== "string" || !mode.trim()) {
-    return [];
-  }
+  if (typeof mode !== "string" || !mode.trim()) return [];
   return MODE_AGENTS[mode.trim()] ?? [];
 }

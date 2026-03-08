@@ -1,7 +1,7 @@
-import { createAgent } from "../schema.js";
-import { RETRY_ERROR_TYPES } from "../../core/retryPolicy.js";
+import { createAgent } from "./schema.js";
+import { RETRY_ERROR_TYPES } from "../core/retryPolicy.js";
 
-export const coderAgent = createAgent({
+export const websiteCoderAgent = createAgent({
   id: "website_coder",
   roleName: "website_coder",
   promptPath: "website:coder",

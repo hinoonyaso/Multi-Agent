@@ -1,7 +1,7 @@
-import { createAgent } from "../schema.js";
-import { RETRY_ERROR_TYPES } from "../../core/retryPolicy.js";
+import { createAgent } from "./schema.js";
+import { RETRY_ERROR_TYPES } from "../core/retryPolicy.js";
 
-export const uiCriticAgent = createAgent({
+export const websiteUiCriticAgent = createAgent({
   id: "website_ui_critic",
   roleName: "website_ui_critic",
   promptPath: "website:ui_critic",

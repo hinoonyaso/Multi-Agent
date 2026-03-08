@@ -37,9 +37,13 @@ export function getNextNode(graph, currentNodeId, result, context) {
  * @param {Object} context - Execution context
  * @returns {boolean} True if node should be skipped
  */
-export function shouldSkipNode(graph, node, context) {
+export function shouldSkipNode(graph, node, context, resolveCondition) {
   if (!node?.skipCondition || !context) {
     return false;
+  }
+
+  if (typeof resolveCondition === "function") {
+    return resolveCondition(node.skipCondition, context);
   }
 
   const evaluators = graph?.skipConditionEvaluators;
@@ -59,13 +63,18 @@ export function shouldSkipNode(graph, node, context) {
  * @param {Object} graph - Graph with skipHandlers
  * @param {string} nodeId - Skipped node id
  * @param {Object} context - Execution context
+ * @param {Function} [resolveSkipHandler] - Optional callback override
  * @returns {Object|null} Injected result or null
  */
-export function getSkipHandlerResult(graph, nodeId, context) {
+export function getSkipHandlerResult(graph, nodeId, context, resolveSkipHandler) {
   const handlerKey = graph.skipHandlers?.[nodeId];
-  if (!handlerKey || typeof context.getSkipResult !== "function") {
-    return null;
+  if (!handlerKey) return null;
+
+  if (typeof resolveSkipHandler === "function") {
+    return resolveSkipHandler(handlerKey, context) ?? null;
   }
+
+  if (typeof context.getSkipResult !== "function") return null;
   return context.getSkipResult?.(nodeId, handlerKey, context) ?? null;
 }
 
@@ -74,10 +83,17 @@ export function getSkipHandlerResult(graph, nodeId, context) {
  * @param {Object} graph - Graph with nodes, edges, retryPolicy
  * @param {Object} initialContext - Initial context (runtime, input, etc.)
  * @param {Object} nodeRunners - Map of nodeId -> async (context) => result
- * @param {Object} [options] - { emit, maxRepairAttempts }
+ * @param {Object} [options] - {
+ *   emit,
+ *   maxRepairAttempts,
+ *   resolveCondition?: (condition, ctx) => boolean,
+ *   mergeNodeResult?: (ctx, nodeId, result) => ctx,
+ *   resolveSkipHandler?: (handlerKey, ctx) => result|null
+ * }
  * @returns {Promise<Object>} Final context with result
  */
 export async function executeGraph(graph, initialContext, nodeRunners, options = {}) {
+  const { resolveCondition, mergeNodeResult, resolveSkipHandler } = options;
   const context = { ...initialContext };
   let currentNodeId = graph.entryNode ?? graph.nodes?.[0]?.id;
   let lastResult = null;
@@ -93,8 +109,8 @@ export async function executeGraph(graph, initialContext, nodeRunners, options =
       break;
     }
 
-    if (shouldSkipNode(graph, node, context)) {
-      const skipResult = getSkipHandlerResult(graph, currentNodeId, context);
+    if (shouldSkipNode(graph, node, context, resolveCondition)) {
+      const skipResult = getSkipHandlerResult(graph, currentNodeId, context, resolveSkipHandler);
       if (skipResult) {
         Object.assign(context, skipResult);
       }
@@ -106,7 +122,13 @@ export async function executeGraph(graph, initialContext, nodeRunners, options =
     }
 
     lastResult = await runner(context);
-    mergeResultIntoContext(graph, node, context, currentNodeId, lastResult);
+
+    if (typeof mergeNodeResult === "function") {
+      const merged = mergeNodeResult(context, currentNodeId, lastResult);
+      if (merged && merged !== context) Object.assign(context, merged);
+    } else {
+      mergeResultIntoContext(graph, node, context, currentNodeId, lastResult);
+    }
 
     const nextId = getNextNode(graph, currentNodeId, lastResult, context);
     if (!nextId) {

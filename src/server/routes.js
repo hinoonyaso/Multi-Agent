@@ -272,6 +272,7 @@ async function loadPersistedState(runId) {
 function buildRunSummary({ requestedRunId, runRecord, persistedState }) {
   const savedSteps = getSavedStepOutputs(persistedState);
   const finalResult = runRecord?.result ?? persistedState?.final ?? null;
+  const steps = persistedState?.steps ?? {};
 
   return compactObject({
     runId: requestedRunId,
@@ -285,14 +286,51 @@ function buildRunSummary({ requestedRunId, runRecord, persistedState }) {
       finalizedAt: persistedState?.finalizedAt ?? null
     }),
     lastEvent: runRecord?.lastEvent ?? null,
+    currentStage: deriveCurrentStage(runRecord, steps),
+    stages: deriveStageMap(steps),
+    renderDiagnostics: steps.render_diagnostics ?? null,
+    finalRecommendation: deriveFinalRecommendation(steps, finalResult),
     revision: summarizeRevisionTrace(
-      persistedState?.steps?.revision_trace,
+      steps.revision_trace,
       persistedState?.summaries?.revision_trace
     ),
     savedSteps,
     result: finalResult,
     error: runRecord?.error ?? null
   });
+}
+
+function deriveCurrentStage(runRecord, steps) {
+  const lastEventStep = runRecord?.lastEvent?.step;
+  if (lastEventStep) return lastEventStep;
+  const STAGE_ORDER = ["architect", "coder_first_pass", "ui_critic", "revision", "validator"];
+  const stepKeys = { architect: "architect", coder_first_pass: "coder_first_pass", ui_critic: "ui_critic", revision: "revision_summary", validator: "validator" };
+  for (let i = STAGE_ORDER.length - 1; i >= 0; i--) {
+    if (steps[stepKeys[STAGE_ORDER[i]]]) return STAGE_ORDER[i];
+  }
+  return null;
+}
+
+function deriveStageMap(steps) {
+  const STAGE_ORDER = ["architect", "coder_first_pass", "ui_critic", "revision", "validator"];
+  const stepKeys = { architect: "architect", coder_first_pass: "coder_first_pass", ui_critic: "ui_critic", revision: "revision_summary", validator: "validator" };
+  const result = {};
+  for (const stage of STAGE_ORDER) {
+    result[stage] = steps[stepKeys[stage]] ? "done" : "pending";
+  }
+  // A revision stage with no revision_summary but a coder_final means it was skipped (no revision occurred)
+  if (result.revision === "pending" && steps.coder_final) result.revision = "skipped";
+  return result;
+}
+
+function deriveFinalRecommendation(steps, finalResult) {
+  const validatorStep = steps.validator;
+  if (validatorStep?.approval?.recommendation) return validatorStep.approval.recommendation;
+  if (validatorStep?.parsed?.status) return validatorStep.parsed.status;
+  if (finalResult) return "approve";
+  const uiCriticStep = steps.ui_critic;
+  if (uiCriticStep?.parsed?.final_recommendation) return uiCriticStep.parsed.final_recommendation;
+  return null;
 }
 
 function deriveSummaryStatus({ runRecord, persistedState, finalResult }) {

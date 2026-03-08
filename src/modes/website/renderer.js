@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { chromium } from "playwright";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 720 };
@@ -29,7 +30,8 @@ export async function captureRenderDiagnostics(files, outputType) {
     workDir = await mkdtemp(join(tmpdir(), "website-render-"));
     await writeArtifactFiles(workDir, files);
 
-    const { url, close: closeServer } = await startServer(workDir, files, outputType);
+    const { url, close: closeServer, errors: serverErrors } = await startServer(workDir, files, outputType);
+    if (serverErrors?.length) result.consoleErrors.push(...serverErrors);
     if (!url) {
       return result;
     }
@@ -129,7 +131,62 @@ function getContentType(filePath) {
 }
 
 async function startViteServer(workDir) {
-  return { url: null };
+  if (!existsSync(join(workDir, "package.json"))) {
+    return {
+      url: null,
+      errors: ["[vite] package.json not found — cannot start Vite dev server"]
+    };
+  }
+
+  return new Promise((resolve) => {
+    const child = spawn(
+      process.platform === "win32" ? "npx.cmd" : "npx",
+      ["vite", "--host", "127.0.0.1", "--port", "4173", "--strictPort"],
+      { cwd: workDir, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CI: "1" } }
+    );
+
+    let resolved = false;
+    const errors = [];
+
+    const finish = (result) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(result);
+    };
+
+    const tryResolveUrl = (chunk) => {
+      const text = String(chunk);
+      const match = text.match(/http:\/\/127\.0\.0\.1:(\d+)/);
+      if (match) {
+        finish({
+          url: `http://127.0.0.1:${match[1]}`,
+          errors,
+          close: () => { try { child.kill("SIGTERM"); } catch {} }
+        });
+      }
+    };
+
+    child.stdout.on("data", tryResolveUrl);
+    child.stderr.on("data", (chunk) => {
+      tryResolveUrl(chunk);
+      const text = String(chunk).trim();
+      if (text.toLowerCase().includes("error")) errors.push(`[vite] ${text}`);
+    });
+
+    child.on("exit", (code) => {
+      if (code !== 0) errors.push(`[vite] Process exited with code ${code} — try running npm install first`);
+      finish({ url: null, errors });
+    });
+    child.on("error", (err) => {
+      errors.push(`[vite] Failed to spawn: ${err.message}`);
+      finish({ url: null, errors });
+    });
+
+    setTimeout(() => {
+      errors.push("[vite] Server startup timed out after 15s");
+      finish({ url: null, errors });
+    }, 15000);
+  });
 }
 
 function findEntrypoint(files) {

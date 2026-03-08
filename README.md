@@ -13,27 +13,51 @@ Pipeline stages use agent definitions from the registry; graph-based execution s
 
 ## Layout
 
-- `src/core`: orchestration runtime, graph executor, state store, validator
-- `src/agents`: agent definitions (website mode: architect, coder, ui_critic, validator)
-- `src/modes`: mode-specific pipeline entry points
-- `src/contracts`: output contract definitions
-- `src/prompts`: core, role, and mode prompt files
-- `tests`: smoke and unit tests
-- `runs`: local run artifacts
-- `logs`: local execution logs
-- `docs`: project notes
+```
+src/
+  core/           # orchestration runtime, graph executor, state store, validator
+  agents/         # flat agent definitions (websiteArchitect, websiteCoder, websiteUiCritic, websiteValidator)
+  modes/
+    website/
+      stages/     # website-specific stage runners (architect, coder, uiCritic, revision, validator)
+      renderer.js # Playwright render diagnostics (static HTTP + Vite dev server)
+      graph.js    # declarative WEBSITE_MODE_GRAPH
+      lightweightCritic.js
+  contracts/      # output contract definitions
+  prompts/        # core, role, and mode prompt files
+tests/            # smoke and unit tests
+runs/             # local run artifacts
+logs/             # local execution logs
+docs/             # project notes
+```
 
 ## Status
 
 Website mode production-ready; other modes in development.
 
+## Current Implemented Mode: Website
+
+The website mode runs a full graph-based execution flow:
+
+```
+architect → coder_first_pass → ui_critic → revision → validator
+```
+
+- **First-pass generation** is reviewed by a UI critic before revision
+- **Render diagnostics** capture a Playwright screenshot, console errors, and mobile viewport overflow before the critic runs — both static HTML and React/Vite apps are supported
+- **Follow-up requests** use a lightweight critic path that skips the full UI critic for faster iteration
+- **Revision loop** executes when the critic recommends changes and produces a traceable coder revision pass
+- **Contract repair** retries the coder pass when the validator finds contract violations
+- **`GET /run/:runId`** returns stage-level status (`stages`, `currentStage`, `renderDiagnostics`, `finalRecommendation`) in addition to the full saved steps
+
 ## Implemented Features
 
-- **Graph-based declarative pipeline** (`graphExecutor`): nodes with `contextKey`/`contextMerge`, pluggable `edgeConditionEvaluators` and `skipConditionEvaluators`
-- **Render-based UI critic**: Playwright, screenshot, console capture, mobile viewport
+- **Graph-based declarative pipeline** (`graphExecutor`): nodes with `contextKey`/`contextMerge`, pluggable `edgeConditionEvaluators`, `skipConditionEvaluators`, and optional `resolveCondition`/`mergeNodeResult`/`resolveSkipHandler` callbacks for mode-agnostic extension
+- **Render-based UI critic**: Playwright, screenshot, console capture, mobile viewport; Vite dev server spawned for `react_vite_app` output
 - **Schema-based contract validation**: mode contracts, role schemas, structural checks
 - **Lightweight critic for follow-up path**: skips full UI critic when `previousArtifact` is provided
 - **Unified runId**: API `runId` is passed through to pipeline; persisted state uses the same ID
+- **Stage decomposition**: website mode logic split into `stages/` (architectStage, coderStage, uiCriticStage, revisionStage, validatorStage) with a thin `index.js` orchestrator
 
 ## Running the Local Web UI
 

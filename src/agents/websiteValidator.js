@@ -1,7 +1,7 @@
-import { createAgent } from "../schema.js";
-import { RETRY_ERROR_TYPES } from "../../core/retryPolicy.js";
+import { createAgent } from "./schema.js";
+import { RETRY_ERROR_TYPES } from "../core/retryPolicy.js";
 
-export const validatorAgent = createAgent({
+export const websiteValidatorAgent = createAgent({
   id: "website_validator",
   roleName: "validator",
   promptPath: "roles:validator",
