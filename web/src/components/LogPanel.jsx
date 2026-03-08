@@ -1,9 +1,22 @@
+import { useState } from "react";
+
 const cardStyle = {
   padding: "20px",
   borderRadius: "18px",
   background: "#17212b",
   color: "#f8fafc",
   border: "1px solid rgba(255, 255, 255, 0.08)"
+};
+
+const toggleButtonStyle = {
+  appearance: "none",
+  border: "1px solid rgba(255, 255, 255, 0.14)",
+  background: "rgba(255, 255, 255, 0.04)",
+  color: "#f8fafc",
+  borderRadius: "10px",
+  padding: "8px 12px",
+  cursor: "pointer",
+  marginBottom: "14px"
 };
 
 const logViewportStyle = {
@@ -70,6 +83,8 @@ const summaryStyle = {
 };
 
 export default function LogPanel({ events = [] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   const orderedEvents = [...events].sort((left, right) => {
     const leftTime = new Date(left?.timestamp ?? 0).getTime();
     const rightTime = new Date(right?.timestamp ?? 0).getTime();
@@ -78,9 +93,22 @@ export default function LogPanel({ events = [] }) {
 
   return (
     <section style={cardStyle}>
-      <h2 style={{ marginTop: 0 }}>Live Logs</h2>
+      <h2 style={{ marginTop: 0 }}>Developer Logs</h2>
 
-      {orderedEvents.length === 0 ? (
+      <button
+        type="button"
+        style={toggleButtonStyle}
+        onClick={() => setIsOpen((previous) => !previous)}
+      >
+        {isOpen ? "Hide raw events" : `Show raw events (${orderedEvents.length})`}
+      </button>
+
+      {!isOpen ? (
+        <p style={{ margin: 0, color: "#94a3b8" }}>
+          Raw websocket events are hidden by default. Expand this panel for debugging
+          details.
+        </p>
+      ) : orderedEvents.length === 0 ? (
         <p style={{ margin: 0, color: "#94a3b8" }}>No log events yet.</p>
       ) : (
         <div style={logViewportStyle}>
@@ -97,7 +125,10 @@ export default function LogPanel({ events = [] }) {
                 <div style={metaStyle}>
                   <span>{formatTimestamp(event?.timestamp)}</span>
                   <span>{eventType}</span>
+                  {event?.agent ? <span>agent={event.agent}</span> : null}
+                  {event?.step ? <span>step={event.step}</span> : null}
                 </div>
+
                 {timingEntries.length > 0 ? (
                   <div style={timingStyle}>
                     {timingEntries.map((entry) => (
@@ -114,6 +145,7 @@ export default function LogPanel({ events = [] }) {
                     ))}
                   </div>
                 ) : null}
+
                 <p style={summaryStyle}>{event?.summary || "No summary provided."}</p>
               </div>
             );

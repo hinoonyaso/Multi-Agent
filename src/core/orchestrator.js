@@ -26,11 +26,21 @@ const DEFAULT_MODE = "website";
 export async function runPipeline({
   userRequest,
   modeHint,
+  previousRunId,
+  previousRequest,
+  previousArtifact,
   workingDir,
   onEvent
 } = {}) {
   return runPipelineInternal(
-    normalizePipelineInput({ userRequest, modeHint, workingDir }),
+    normalizePipelineInput({
+      userRequest,
+      modeHint,
+      previousRunId,
+      previousRequest,
+      previousArtifact,
+      workingDir
+    }),
     createDefaultDependencies(),
     onEvent
   );
@@ -54,6 +64,8 @@ async function runPipelineInternal(input, dependencies, onEvent = null) {
   const { codexRunner, retryPolicy } = dependencies;
   let runState = null;
   let selectedMode = input.modeHint ?? DEFAULT_MODE;
+  let routing = null;
+  let planning = null;
   let currentStep = "run";
   const emit = createEventEmitter({
     onEvent,
@@ -69,28 +81,41 @@ async function runPipelineInternal(input, dependencies, onEvent = null) {
       summary: "Pipeline execution started."
     });
 
+    const fastPathMode = resolveFastPathMode(input);
+
     currentStep = "router";
     emit({
       type: "router_started",
       step: "router",
       summary: "Routing request to a mode."
     });
-    const routing = await executeWithRetry({
-      stageName: "router",
-      retryPolicy,
-      operation: () => runRoutingStage({ codexRunner, input })
-    });
-    await saveStep(runState, "router", routing);
-
-    selectedMode = resolveSelectedMode({
-      routing,
-      modeHint: input.modeHint
-    });
+    if (fastPathMode) {
+      selectedMode = fastPathMode;
+      routing = {
+        mode: selectedMode,
+        fast_path: true,
+        note: "Follow-up request reused the current artifact and skipped router model execution."
+      };
+      await saveStep(runState, "router", routing);
+    } else {
+      routing = await executeWithRetry({
+        stageName: "router",
+        retryPolicy,
+        operation: () => runRoutingStage({ codexRunner, input })
+      });
+      await saveStep(runState, "router", routing);
+      selectedMode = resolveSelectedMode({
+        routing,
+        modeHint: input.modeHint
+      });
+    }
     emit({
       type: "router_completed",
       step: "router",
       mode: selectedMode,
-      summary: `Routing selected mode "${selectedMode}".`
+      summary: fastPathMode
+        ? `Follow-up fast path locked mode "${selectedMode}".`
+        : `Routing selected mode "${selectedMode}".`
     });
 
     const modePipeline = selectModePipeline(selectedMode);
@@ -103,24 +128,36 @@ async function runPipelineInternal(input, dependencies, onEvent = null) {
       mode: selectedMode,
       summary: `Planning "${selectedMode}" execution.`
     });
-    const planning = await executeWithRetry({
-      stageName: "planner",
-      retryPolicy,
-      operation: () =>
-        runPlanningStage({
-          codexRunner,
-          input,
-          routing,
-          selectedMode,
-          contract
-        })
-    });
-    await saveStep(runState, "planner", planning);
+    if (fastPathMode) {
+      planning = {
+        selectedMode,
+        fast_path: true,
+        steps: ["targeted_follow_up_update"],
+        note: "Planner model call skipped because a previous artifact was provided."
+      };
+      await saveStep(runState, "planner", planning);
+    } else {
+      planning = await executeWithRetry({
+        stageName: "planner",
+        retryPolicy,
+        operation: () =>
+          runPlanningStage({
+            codexRunner,
+            input,
+            routing,
+            selectedMode,
+            contract
+          })
+      });
+      await saveStep(runState, "planner", planning);
+    }
     emit({
       type: "planner_completed",
       step: "planner",
       mode: selectedMode,
-      summary: `Plan ready for mode "${selectedMode}".`
+      summary: fastPathMode
+        ? `Follow-up fast path reused the existing artifact and skipped planning.`
+        : `Plan ready for mode "${selectedMode}".`
     });
 
     currentStep = "mode";
@@ -244,10 +281,20 @@ function createDefaultDependencies(overrides = {}) {
   };
 }
 
-function normalizePipelineInput({ userRequest, modeHint, workingDir } = {}) {
+function normalizePipelineInput({
+  userRequest,
+  modeHint,
+  previousRunId,
+  previousRequest,
+  previousArtifact,
+  workingDir
+} = {}) {
   return {
     userRequest: userRequest ?? "",
     modeHint: modeHint ?? null,
+    previousRunId: previousRunId ?? null,
+    previousRequest: previousRequest ?? null,
+    previousArtifact: previousArtifact ?? null,
     workingDir: workingDir ?? process.cwd()
   };
 }
@@ -256,6 +303,9 @@ function normalizeLegacyInput(input = {}) {
   return normalizePipelineInput({
     userRequest: input.userRequest ?? input.task ?? "",
     modeHint: input.modeHint ?? input.mode ?? null,
+    previousRunId: input.previousRunId ?? input.followUpToRunId ?? null,
+    previousRequest: input.previousRequest ?? null,
+    previousArtifact: input.previousArtifact ?? null,
     workingDir: input.workingDir
   });
 }
@@ -374,6 +424,19 @@ function resolveSelectedMode({ routing, modeHint }) {
     routing?.request?.expectedOutput?.mode;
 
   return routedMode ?? modeHint ?? DEFAULT_MODE;
+}
+
+function resolveFastPathMode(input) {
+  const previousArtifactMode =
+    typeof input?.previousArtifact?.mode === "string" && input.previousArtifact.mode.trim()
+      ? input.previousArtifact.mode.trim()
+      : null;
+
+  if (!input?.previousArtifact) {
+    return null;
+  }
+
+  return input.modeHint ?? previousArtifactMode ?? null;
 }
 
 function buildModeContext({ selectedMode, input, planning, contract }) {

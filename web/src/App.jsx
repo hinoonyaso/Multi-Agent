@@ -11,60 +11,277 @@ import { connectRunSocket } from "./lib/socket.js";
 const shellStyle = {
   minHeight: "100vh",
   margin: 0,
-  fontFamily: "Georgia, serif",
+  fontFamily: "\"IBM Plex Sans\", \"Segoe UI\", sans-serif",
   background:
-    "linear-gradient(135deg, #f3eadb 0%, #d8e5ea 45%, #f9f6ef 100%)",
-  color: "#1f2933"
+    "radial-gradient(circle at top, rgba(244, 245, 247, 0.95) 0%, rgba(238, 239, 241, 0.98) 34%, #ececeb 100%)",
+  color: "#111827"
 };
 
-const layoutStyle = {
+const frameStyle = {
   display: "grid",
-  gridTemplateColumns: "320px minmax(0, 1fr) 360px",
-  gridTemplateAreas: `
-    "form timeline result"
-    "preview preview preview"
-  `,
-  alignItems: "start",
+  gridTemplateColumns: "240px minmax(0, 1fr) 360px",
+  minHeight: "100vh"
+};
+
+const sidebarStyle = {
+  borderRight: "1px solid rgba(17, 24, 39, 0.08)",
+  padding: "18px 12px",
+  background: "rgba(245, 246, 247, 0.88)",
+  backdropFilter: "blur(18px)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "18px"
+};
+
+const brandMarkStyle = {
+  width: "32px",
+  height: "32px",
+  borderRadius: "11px",
+  display: "grid",
+  placeItems: "center",
+  background: "#0f172a",
+  color: "#ffffff",
+  fontWeight: 800,
+  fontSize: "1.1rem"
+};
+
+const newChatButtonStyle = {
+  width: "100%",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "12px 14px",
+  borderRadius: "14px",
+  border: "1px solid rgba(39, 30, 17, 0.08)",
+  background: "#ffffff",
+  color: "#111827",
+  font: "inherit"
+};
+
+const navGroupStyle = {
+  display: "grid",
+  gap: "6px"
+};
+
+const navItemStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  padding: "10px 12px",
+  borderRadius: "12px",
+  color: "#111827"
+};
+
+const navBulletStyle = {
+  width: "8px",
+  height: "8px",
+  borderRadius: "999px",
+  background: "#111827",
+  opacity: 0.6
+};
+
+const historyCardStyle = {
+  padding: "14px",
+  borderRadius: "16px",
+  background: "rgba(255, 255, 255, 0.72)",
+  border: "1px solid rgba(17, 24, 39, 0.08)"
+};
+
+const historyItemStyle = {
+  padding: "8px 0",
+  color: "#4b5563",
+  borderBottom: "1px solid rgba(17, 24, 39, 0.06)"
+};
+
+const centerStageStyle = {
+  display: "flex",
+  flexDirection: "column",
+  minWidth: 0,
+  position: "relative"
+};
+
+const topBarStyle = {
+  display: "flex",
+  justifyContent: "center",
+  padding: "24px 32px 0"
+};
+
+const topPillStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "10px 16px",
+  borderRadius: "999px",
+  background: "rgba(255, 255, 255, 0.78)",
+  border: "1px solid rgba(17, 24, 39, 0.08)",
+  color: "#2563eb",
+  fontSize: "0.95rem",
+  boxShadow: "0 10px 30px rgba(17, 24, 39, 0.06)"
+};
+
+const heroStageStyle = (hasStartedRun) => ({
+  flex: 1,
+  display: "flex",
+  alignItems: hasStartedRun ? "flex-start" : "center",
+  justifyContent: "center",
+  padding: hasStartedRun ? "18px 32px 28px" : "26px 32px 32px"
+});
+
+const heroColumnStyle = (hasStartedRun) => ({
+  width: hasStartedRun ? "min(1040px, 100%)" : "min(780px, 100%)",
+  display: "grid",
+  gap: hasStartedRun ? "16px" : "20px",
+  justifyItems: hasStartedRun ? "stretch" : "center"
+});
+
+const heroIntroStyle = (hasStartedRun) => ({
+  textAlign: hasStartedRun ? "left" : "center"
+});
+
+const heroTitleStyle = (hasStartedRun) => ({
+  margin: 0,
+  fontSize: hasStartedRun ? "2.2rem" : "clamp(3.6rem, 10vw, 5.2rem)",
+  lineHeight: hasStartedRun ? 1 : 0.95,
+  letterSpacing: hasStartedRun ? "-0.05em" : "-0.08em",
+  fontWeight: 800
+});
+
+const heroCopyStyle = (hasStartedRun) => ({
+  margin: hasStartedRun ? "6px 0 0" : "0",
+  color: "#6b7280",
+  maxWidth: hasStartedRun ? "72ch" : "44ch",
+  textAlign: hasStartedRun ? "left" : "center",
+  lineHeight: hasStartedRun ? 1.45 : 1.6
+});
+
+const bottomPanelGridStyle = (hasStartedRun) => ({
+  width: "min(1040px, 100%)",
+  display: "grid",
+  gridTemplateColumns: hasStartedRun
+    ? "minmax(0, 1.35fr) minmax(0, 0.65fr)"
+    : "minmax(0, 1.1fr) minmax(0, 0.9fr)",
   gap: "16px",
-  padding: "24px"
-};
+  alignItems: "start"
+});
 
-const stackStyle = {
+const railStyle = {
+  borderLeft: "1px solid rgba(17, 24, 39, 0.08)",
+  padding: "20px 18px",
+  background: "rgba(248, 248, 247, 0.76)",
+  backdropFilter: "blur(16px)",
   display: "grid",
-  gap: "16px"
+  gap: "14px",
+  alignContent: "start",
+  overflow: "auto"
 };
 
-const panelStyle = {
-  minWidth: 0
+const railCardStyle = {
+  padding: "18px",
+  borderRadius: "18px",
+  background: "rgba(255, 255, 255, 0.84)",
+  border: "1px solid rgba(17, 24, 39, 0.08)"
 };
 
 const statusCardStyle = {
-  margin: "16px 24px 0",
-  padding: "16px 18px",
-  borderRadius: "14px",
-  background: "rgba(255, 255, 255, 0.76)",
-  border: "1px solid rgba(31, 41, 51, 0.12)"
+  padding: "18px",
+  borderRadius: "20px",
+  background: "rgba(255, 255, 255, 0.8)",
+  border: "1px solid rgba(17, 24, 39, 0.08)",
+  boxShadow: "0 16px 40px rgba(17, 24, 39, 0.06)"
 };
 
-const statusMetaStyle = {
-  margin: "8px 0 0",
-  fontFamily: "monospace",
-  fontSize: "0.9rem",
-  color: "#52606d",
+const compactMetricCardStyle = {
+  padding: "12px",
+  borderRadius: "14px",
+  background: "rgba(243, 244, 246, 0.9)"
+};
+
+const conversationCardStyle = {
+  width: "100%",
+  padding: "16px",
+  borderRadius: "20px",
+  background: "rgba(255, 255, 255, 0.82)",
+  border: "1px solid rgba(17, 24, 39, 0.08)",
+  boxShadow: "0 16px 40px rgba(17, 24, 39, 0.05)"
+};
+
+const conversationHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "12px",
+  flexWrap: "wrap",
+  marginBottom: "12px"
+};
+
+const conversationListStyle = {
+  display: "grid",
+  gap: "10px",
+  maxHeight: "340px",
+  overflowY: "auto"
+};
+
+const messageRowStyle = (role) => ({
+  display: "flex",
+  justifyContent: role === "user" ? "flex-end" : "flex-start"
+});
+
+const messageBubbleStyle = (role) => ({
+  width: "min(100%, 760px)",
+  padding: "12px 14px",
+  borderRadius: role === "user" ? "16px 16px 6px 16px" : "16px 16px 16px 6px",
+  background: role === "user" ? "#111827" : "rgba(243, 244, 246, 0.92)",
+  color: role === "user" ? "#f9fafb" : "#111827",
+  border: role === "user" ? "none" : "1px solid rgba(17, 24, 39, 0.08)"
+});
+
+const messageMetaStyle = (role) => ({
+  margin: 0,
+  fontSize: "0.74rem",
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  color: role === "user" ? "rgba(249, 250, 251, 0.72)" : "#6b7280"
+});
+
+const messageTextStyle = {
+  margin: "6px 0 0",
+  lineHeight: 1.5,
   whiteSpace: "pre-wrap",
   wordBreak: "break-word"
 };
 
+const statusMetaStyle = (hasStartedRun) => ({
+  margin: "10px 0 0",
+  fontFamily: "\"IBM Plex Mono\", \"SFMono-Regular\", monospace",
+  fontSize: hasStartedRun ? "0.78rem" : "0.82rem",
+  color: "#6b7280",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  lineHeight: hasStartedRun ? 1.45 : 1.6
+});
+
+const MODE_NAV_ITEMS = [
+  { label: "Websites", mode: "website" },
+  { label: "Docs", mode: "docx" },
+  { label: "Slides", mode: "slide" },
+  { label: "Sheets", mode: "sheet" },
+  { label: "Deep Research", mode: "deep_research" }
+];
+
 export default function App() {
   const socketRef = useRef(null);
   const activeRunIdRef = useRef("");
+  const announcedRunKeysRef = useRef(new Set());
   const [runId, setRunId] = useState("");
+  const [selectedMode, setSelectedMode] = useState("website");
   const [runStatus, setRunStatus] = useState("idle");
   const [socketStatus, setSocketStatus] = useState("disconnected");
   const [events, setEvents] = useState([]);
   const [runRecord, setRunRecord] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [clock, setClock] = useState(() => Date.now());
+  const [conversation, setConversation] = useState([]);
+  const [composerResetKey, setComposerResetKey] = useState("idle");
 
   useEffect(() => {
     return () => {
@@ -86,7 +303,39 @@ export default function App() {
     };
   }, [runStatus]);
 
+  function handleResetChat() {
+    closeActiveSocket(socketRef);
+    activeRunIdRef.current = "";
+    announcedRunKeysRef.current = new Set();
+    setRunId("");
+    setRunRecord(null);
+    setRunStatus("idle");
+    setSocketStatus("disconnected");
+    setEvents([]);
+    setErrorMessage("");
+    setConversation([]);
+    setComposerResetKey(`reset-${Date.now()}`);
+  }
+
   async function handleRunSubmit(payload) {
+    const nextConversationMessage = createConversationEntry({
+      role: "user",
+      text: payload.userRequest,
+      mode: selectedMode
+    });
+    const requestPayload = buildSubmissionPayload({
+      payload,
+      previousRunId: runId || runRecord?.runId || "",
+      previousResult: buildResult({
+        runId,
+        runStatus,
+        runRecord,
+        errorMessage
+      })
+    });
+
+    setConversation((current) => current.concat(nextConversationMessage));
+    setComposerResetKey(`submit-${Date.now()}`);
     closeActiveSocket(socketRef);
 
     activeRunIdRef.current = "";
@@ -98,7 +347,7 @@ export default function App() {
     setRunStatus("starting");
 
     try {
-      const response = await startRun(payload);
+      const response = await startRun(requestPayload);
       const nextRunId = response?.runId;
 
       if (typeof nextRunId !== "string" || nextRunId.trim() === "") {
@@ -112,7 +361,7 @@ export default function App() {
         runId: nextRunId,
         status: "running",
         message: response?.message ?? "Run started",
-        input: payload,
+        input: requestPayload,
         result: null,
         error: null
       });
@@ -125,6 +374,16 @@ export default function App() {
       setRunStatus("failed");
       setSocketStatus("disconnected");
       setErrorMessage(message);
+      setConversation((current) =>
+        current.concat(
+          createConversationEntry({
+            role: "assistant",
+            text: `The run could not start.\n\n${message}`,
+            mode: selectedMode,
+            tone: "error"
+          })
+        )
+      );
       setEvents([
         createClientEvent({
           eventType: "start_failed",
@@ -243,6 +502,8 @@ export default function App() {
       if (nextRunRecord?.lastEvent) {
         setEvents((currentEvents) => appendEventIfMissing(currentEvents, nextRunRecord.lastEvent));
       }
+
+      appendRunSummaryToConversation(nextRunRecord);
     } catch (error) {
       if (activeRunIdRef.current !== currentRunId) {
         return;
@@ -254,6 +515,41 @@ export default function App() {
     }
   }
 
+  function appendRunSummaryToConversation(nextRunRecord) {
+    const summaryKey = `${nextRunRecord?.runId || "unknown"}:${nextRunRecord?.status || "unknown"}`;
+
+    if (announcedRunKeysRef.current.has(summaryKey)) {
+      return;
+    }
+
+    announcedRunKeysRef.current.add(summaryKey);
+
+    const nextResult = buildResult({
+      runId: nextRunRecord?.runId ?? "",
+      runStatus: nextRunRecord?.status ?? "completed",
+      runRecord: nextRunRecord,
+      errorMessage: nextRunRecord?.error?.message ?? ""
+    });
+    const nextDeliverables = getDeliverables(nextResult);
+    const nextPreviewFiles = getPreviewFiles(nextResult, nextDeliverables);
+
+    setConversation((current) =>
+      current.concat(
+        createConversationEntry({
+          role: "assistant",
+          text: buildAssistantRunSummary({
+            runRecord: nextRunRecord,
+            result: nextResult,
+            deliverables: nextDeliverables,
+            previewFiles: nextPreviewFiles
+          }),
+          mode: nextResult?.mode ?? selectedMode,
+          tone: nextRunRecord?.status === "failed" ? "error" : "default"
+        })
+      )
+    );
+  }
+
   const normalizedResult = buildResult({
     runId,
     runStatus,
@@ -263,7 +559,8 @@ export default function App() {
   const deliverables = getDeliverables(normalizedResult);
   const previewFiles = getPreviewFiles(normalizedResult, deliverables);
   const isRunning = runStatus === "starting" || runStatus === "running";
-  const hasStartedRun = runId !== "" || runRecord !== null || events.length > 0;
+  const hasStartedRun =
+    runId !== "" || runRecord !== null || events.length > 0 || conversation.length > 0;
   const lastEvent = events[events.length - 1] ?? runRecord?.lastEvent ?? null;
   const runDuration = getRunDuration({
     runRecord,
@@ -287,74 +584,335 @@ export default function App() {
 
   return (
     <main style={shellStyle}>
-      <header style={{ padding: "24px 24px 0" }}>
-        <p style={{ margin: 0, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          SMMA Browser Shell
-        </p>
-        <h1 style={{ margin: "8px 0 0", fontSize: "2.5rem" }}>Pipeline Control Room</h1>
-        <p style={{ maxWidth: "60ch" }}>
-          Run the pipeline, follow websocket updates in real time, and inspect the
-          final packaged output from the backend.
-        </p>
-        <p style={{ marginBottom: 0, color: "#52606d" }}>
-          Status: <strong>{runStatus}</strong>
-          {runId ? ` · Run ${runId}` : ""}
-          {socketStatus !== "disconnected" ? ` · Socket ${socketStatus}` : ""}
-        </p>
-        {errorMessage ? (
-          <p style={{ marginBottom: 0, color: "#9b1c1c" }}>{errorMessage}</p>
-        ) : null}
-      </header>
+      <style>{`
+        .app-frame {
+          display: grid;
+          grid-template-columns: 240px minmax(0, 1fr) 360px;
+          min-height: 100vh;
+        }
+        @media (max-width: 1180px) {
+          .app-frame {
+            grid-template-columns: 220px minmax(0, 1fr);
+          }
+          .app-rail {
+            grid-column: 1 / -1;
+            border-left: none;
+            border-top: 1px solid rgba(17, 24, 39, 0.08);
+          }
+        }
+        @media (max-width: 820px) {
+          .app-frame {
+            grid-template-columns: 1fr;
+          }
+          .app-sidebar {
+            border-right: none;
+            border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+          }
+          .hero-panels {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
 
-      <section
-        style={{
-          ...statusCardStyle,
-          borderColor: statusBanner.borderColor,
-          background: statusBanner.background
-        }}
-      >
-        <h2 style={{ margin: 0 }}>{statusBanner.title}</h2>
-        <p style={{ margin: "8px 0 0", lineHeight: 1.5 }}>{statusBanner.message}</p>
-        <p style={statusMetaStyle}>{statusBanner.meta}</p>
-      </section>
+      <section className="app-frame" style={frameStyle}>
+        <aside className="app-sidebar" style={sidebarStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={brandMarkStyle}>S</div>
+            <div>
+              <strong style={{ display: "block" }}>SMMA</strong>
+              <span style={{ color: "#6b7280", fontSize: "0.88rem" }}>Browser workspace</span>
+            </div>
+          </div>
 
-      <section style={layoutStyle}>
-        <div style={{ ...stackStyle, ...panelStyle, gridArea: "form" }}>
-          <RunForm
-            onSubmit={handleRunSubmit}
-            isRunning={isRunning}
-            runId={runId}
-            status={runStatus}
-            error={errorMessage}
-          />
-        </div>
+          <button type="button" style={newChatButtonStyle} onClick={handleResetChat}>
+            <span>New Chat</span>
+            <span style={{ color: "#9ca3af", fontSize: "0.86rem" }}>Ctrl K</span>
+          </button>
 
-        <div style={{ ...stackStyle, ...panelStyle, gridArea: "timeline" }}>
-          <AgentTimeline runId={runId} status={runStatus} events={events} />
-          <LogPanel runId={runId} status={runStatus} events={events} />
-        </div>
+          <div style={navGroupStyle}>
+            {MODE_NAV_ITEMS.map((item) => (
+              <button
+                type="button"
+                key={item.mode}
+                onClick={() => setSelectedMode(item.mode)}
+                style={{
+                  ...navItemStyle,
+                  width: "100%",
+                  border:
+                    item.mode === selectedMode
+                      ? "1px solid rgba(17, 24, 39, 0.08)"
+                      : "1px solid transparent",
+                  background: item.mode === selectedMode ? "#ffffff" : "transparent",
+                  fontWeight: item.mode === selectedMode ? 600 : 500,
+                  cursor: "pointer",
+                  font: "inherit"
+                }}
+              >
+                <span style={navBulletStyle} />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
 
-        <div style={{ ...stackStyle, ...panelStyle, gridArea: "result" }}>
-          <ResultPanel runId={runId} status={runStatus} result={normalizedResult} />
-          <RevisionTracePanel revisionTrace={normalizedResult?.revision ?? null} />
-        </div>
+          <div style={{ flex: 1 }} />
 
-        <div style={{ ...panelStyle, gridArea: "preview" }}>
-          <FilePreview
-            runId={runId}
-            status={runStatus}
-            deliverables={deliverables}
-            files={previewFiles}
-            revisionTrace={
-              runRecord?.savedSteps?.revision_trace ??
-              normalizedResult?.revision ??
-              null
-            }
-          />
-        </div>
+          <div style={historyCardStyle}>
+            <p style={{ margin: "0 0 10px", fontWeight: 700 }}>Recent Runs</p>
+            {runId ? (
+              <div style={{ ...historyItemStyle, borderBottom: "none" }}>
+                <div style={{ fontWeight: 600, color: "#111827" }}>{runId}</div>
+                <div style={{ fontSize: "0.88rem" }}>{runStatus}</div>
+              </div>
+            ) : (
+              ["Codex panel", "Robot SW portfolio", "README architecture"].map((item, index, list) => (
+                <div
+                  key={item}
+                  style={{
+                    ...historyItemStyle,
+                    borderBottom:
+                      index === list.length - 1 ? "none" : "1px solid rgba(17, 24, 39, 0.06)"
+                  }}
+                >
+                  {item}
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <section style={centerStageStyle}>
+          <div style={topBarStyle}>
+            <div style={topPillStyle}>
+              {formatModeLabel(selectedMode)} Mode
+            </div>
+          </div>
+
+          <div style={heroStageStyle(hasStartedRun)}>
+            <div style={heroColumnStyle(hasStartedRun)}>
+              <div style={heroIntroStyle(hasStartedRun)}>
+                <h1 style={heroTitleStyle(hasStartedRun)}>SMMA</h1>
+                <p style={heroCopyStyle(hasStartedRun)}>
+                  {hasStartedRun
+                    ? "Track progress, revise requests, inspect revisions, and verify generated files from one workspace."
+                    : "Run website tasks from a chat-first shell, then inspect revision traces, validator outcomes, and generated files without leaving the page."}
+                </p>
+              </div>
+
+              {conversation.length > 0 ? (
+                <section style={conversationCardStyle}>
+                  <div style={conversationHeaderStyle}>
+                    <div>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.8rem",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "#6b7280"
+                        }}
+                      >
+                        Conversation
+                      </p>
+                      <p style={{ margin: "6px 0 0", color: "#6b7280", lineHeight: 1.45 }}>
+                        Review the latest result, then send a follow-up instruction to revise details.
+                      </p>
+                    </div>
+                    <div style={{ ...compactMetricCardStyle, padding: "10px 12px" }}>
+                      <strong>{conversation.length}</strong> messages
+                    </div>
+                  </div>
+                  <div style={conversationListStyle}>
+                    {conversation.map((entry) => (
+                      <div key={entry.id} style={messageRowStyle(entry.role)}>
+                        <div style={messageBubbleStyle(entry.role)}>
+                          <p style={messageMetaStyle(entry.role)}>
+                            {entry.role === "user" ? "You" : "SMMA"} · {entry.modeLabel}
+                          </p>
+                          <p style={messageTextStyle}>{entry.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <div style={{ width: hasStartedRun ? "100%" : "min(770px, 100%)" }}>
+                <RunForm
+                  onSubmit={handleRunSubmit}
+                  isRunning={isRunning}
+                  runId={runId}
+                  status={runStatus}
+                  error={errorMessage}
+                  selectedMode={selectedMode}
+                  placeholder={
+                    conversation.length > 0
+                      ? "Describe what to revise next. Enter to send, Shift+Enter for a new line."
+                      : "Describe what you want to build. Enter to send, Shift+Enter for a new line."
+                  }
+                  resetKey={composerResetKey}
+                />
+              </div>
+
+              <div className="hero-panels" style={bottomPanelGridStyle(hasStartedRun)}>
+                <section
+                  style={{
+                    ...statusCardStyle,
+                    padding: hasStartedRun ? "16px" : statusCardStyle.padding,
+                    borderColor: statusBanner.borderColor,
+                    background: statusBanner.background
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "0.8rem",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#6b7280"
+                    }}
+                  >
+                    Live Status
+                  </p>
+                  <h2 style={{ margin: "8px 0 0", fontSize: hasStartedRun ? "1.15rem" : "1.35rem" }}>
+                    {statusBanner.title}
+                  </h2>
+                  <p style={{ margin: "8px 0 0", lineHeight: hasStartedRun ? 1.45 : 1.6 }}>
+                    {statusBanner.message}
+                  </p>
+                  <p style={statusMetaStyle(hasStartedRun)}>{statusBanner.meta}</p>
+                </section>
+
+                <section style={{ ...railCardStyle, padding: hasStartedRun ? "16px" : railCardStyle.padding }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "0.8rem",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#6b7280"
+                    }}
+                  >
+                    Session Snapshot
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: "10px",
+                      marginTop: hasStartedRun ? "12px" : "14px"
+                    }}
+                  >
+                    {[
+                      ["Run", runId || "none"],
+                      ["Mode", normalizedResult?.mode || selectedMode],
+                      ["Socket", socketStatus],
+                      ["Events", String(events.length)]
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        style={compactMetricCardStyle}
+                      >
+                        <div style={{ fontSize: "0.78rem", color: "#6b7280" }}>{label}</div>
+                        <div
+                          style={{
+                            marginTop: "6px",
+                            fontWeight: 700,
+                            wordBreak: "break-word"
+                          }}
+                        >
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              {hasStartedRun ? (
+                <div className="hero-panels" style={bottomPanelGridStyle(true)}>
+                  <AgentTimeline runId={runId} status={runStatus} events={events} />
+                  <LogPanel runId={runId} status={runStatus} events={events} />
+                </div>
+              ) : null}
+
+              {previewFiles.length > 0 ? (
+                <div style={{ width: "min(1040px, 100%)" }}>
+                  <FilePreview
+                    runId={runId}
+                    status={runStatus}
+                    deliverables={deliverables}
+                    files={previewFiles}
+                    entrypoints={
+                      normalizedResult?.artifact?.entrypoints ??
+                      normalizedResult?.pipelineResult?.entrypoints ??
+                      []
+                    }
+                    revisionTrace={
+                      runRecord?.savedSteps?.revision_trace ??
+                      normalizedResult?.revision ??
+                      null
+                    }
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <aside className="app-rail" style={railStyle}>
+          <section style={railCardStyle}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.8rem",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "#6b7280"
+              }}
+            >
+              Final Output
+            </p>
+            <div style={{ marginTop: "12px" }}>
+              <ResultPanel runId={runId} status={runStatus} result={normalizedResult} />
+            </div>
+          </section>
+
+          <section style={railCardStyle}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.8rem",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "#6b7280"
+              }}
+            >
+              Revision Trace
+            </p>
+            <div style={{ marginTop: "12px" }}>
+              <RevisionTracePanel revisionTrace={normalizedResult?.revision ?? null} />
+            </div>
+          </section>
+        </aside>
       </section>
     </main>
   );
+}
+
+function formatModeLabel(mode) {
+  if (mode === "docx") {
+    return "Docs";
+  }
+
+  if (mode === "deep_research") {
+    return "Deep Research";
+  }
+
+  if (!mode) {
+    return "Website";
+  }
+
+  return mode.charAt(0).toUpperCase() + mode.slice(1);
 }
 
 function closeActiveSocket(socketRef) {
@@ -651,4 +1209,138 @@ function formatDuration(durationMs) {
   }
 
   return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function createConversationEntry({ role, text, mode, tone = "default" }) {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    role,
+    text,
+    tone,
+    modeLabel: formatModeLabel(mode),
+    createdAt: new Date().toISOString()
+  };
+}
+
+function buildSubmissionPayload({ payload, previousRunId, previousResult }) {
+  if (!previousResult) {
+    return payload;
+  }
+
+  const changedFiles = getChangedFileSummaries(previousResult?.revision);
+  const previousArtifact = buildPreviousArtifact(previousResult);
+
+  return {
+    ...payload,
+    previousRunId: previousRunId || previousResult?.runId || "",
+    previousRequest: previousResult?.input?.userRequest || "",
+    previousArtifact,
+    userRequest: [
+      payload.userRequest,
+      changedFiles.length > 0
+        ? `Preserve everything else. Previously changed files include: ${changedFiles.join("; ")}`
+        : "Preserve the existing implementation and only modify the requested parts."
+    ].join("\n\n")
+  };
+}
+
+function buildPreviousArtifact(previousResult) {
+  if (previousResult?.artifact && Array.isArray(previousResult.artifact.files)) {
+    return previousResult.artifact;
+  }
+
+  if (previousResult?.pipelineResult && Array.isArray(previousResult.pipelineResult.files)) {
+    return previousResult.pipelineResult;
+  }
+
+  const deliverables = getDeliverables(previousResult);
+  const previewFiles = getPreviewFiles(previousResult, deliverables);
+
+  if (previewFiles.length === 0) {
+    return null;
+  }
+
+  return {
+    mode: previousResult?.mode ?? "website",
+    output_type: previousResult?.artifact?.output_type ?? previousResult?.pipelineResult?.output_type ?? null,
+    entrypoints:
+      previousResult?.artifact?.entrypoints ??
+      previousResult?.pipelineResult?.entrypoints ??
+      null,
+    files: previewFiles,
+    build_notes:
+      previousResult?.artifact?.build_notes ??
+      previousResult?.pipelineResult?.build_notes ??
+      [],
+    known_limitations:
+      previousResult?.artifact?.known_limitations ??
+      previousResult?.pipelineResult?.known_limitations ??
+      []
+  };
+}
+
+function getChangedFileSummaries(revisionTrace) {
+  if (Array.isArray(revisionTrace?.changed_artifacts)) {
+    return revisionTrace.changed_artifacts
+      .filter((entry) => entry?.artifact_type === "file" && entry?.identifier)
+      .map((entry) =>
+        entry?.summary
+          ? `${entry.identifier} (${entry.change_type || "modified"}: ${entry.summary})`
+          : `${entry.identifier} (${entry.change_type || "modified"})`
+      );
+  }
+
+  if (Array.isArray(revisionTrace?.changedFiles)) {
+    return revisionTrace
+      .changedFiles.filter((entry) => entry?.identifier)
+      .map((entry) =>
+        entry?.summary
+          ? `${entry.identifier} (${entry.change_type || "modified"}: ${entry.summary})`
+          : `${entry.identifier} (${entry.change_type || "modified"})`
+      );
+  }
+
+  return [];
+}
+
+function buildAssistantRunSummary({ runRecord, result, deliverables, previewFiles }) {
+  if (runRecord?.status === "failed") {
+    return [
+      "The run failed.",
+      runRecord?.error?.message || result?.error?.message || "Check the timeline and logs for the failing step.",
+      "You can send a follow-up instruction after adjusting the request."
+    ].join("\n\n");
+  }
+
+  const revisionState = summarizeRevisionState(result?.revision);
+  const deliverableLabel =
+    deliverables.length > 0
+      ? `Deliverables: ${deliverables.map((item) => item?.name).filter(Boolean).join(", ")}.`
+      : "No deliverables were packaged.";
+  const fileLabel =
+    previewFiles.length > 0
+      ? `Preview files: ${previewFiles.map((file) => file.path).slice(0, 6).join(", ")}.`
+      : "No previewable files were attached.";
+
+  return [
+    "The result is ready.",
+    deliverableLabel,
+    fileLabel,
+    revisionState,
+    "Send another instruction to refine copy, spacing, layout, colors, or file details."
+  ].join("\n\n");
+}
+
+function summarizeRevisionState(revision) {
+  if (!revision || revision.occurred === false) {
+    return "No revision pass was recorded.";
+  }
+
+  const changedFiles = getChangedFileSummaries(revision);
+
+  if (changedFiles.length === 0) {
+    return "A revision signal exists, but changed files were not included in the summary.";
+  }
+
+  return `Revision changes: ${changedFiles.slice(0, 4).join("; ")}${changedFiles.length > 4 ? "..." : ""}`;
 }

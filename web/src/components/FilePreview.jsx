@@ -99,7 +99,38 @@ const frameStyle = {
   background: "#ffffff"
 };
 
-export default function FilePreview({ deliverables = [], files = [], revisionTrace = null }) {
+const headerRowStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "12px",
+  flexWrap: "wrap",
+  marginBottom: "14px"
+};
+
+const summaryRowStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "8px"
+};
+
+const summaryBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  fontSize: "0.78rem",
+  fontWeight: 700,
+  background: "rgba(15, 23, 42, 0.06)",
+  color: "#1f2933"
+};
+
+export default function FilePreview({
+  deliverables = [],
+  files = [],
+  entrypoints = [],
+  revisionTrace = null
+}) {
   const previewFiles = useMemo(
     () => normalizePreviewFiles({ deliverables, files }),
     [deliverables, files]
@@ -113,9 +144,10 @@ export default function FilePreview({ deliverables = [], files = [], revisionTra
     [revisionTrace]
   );
   const renderedPreview = useMemo(
-    () => buildRenderedPreview(previewFiles),
-    [previewFiles]
+    () => buildRenderedPreview(previewFiles, { entrypoints, selectedPath }),
+    [entrypoints, previewFiles, selectedPath]
   );
+  const changedFileCount = fileChangeMap.size;
   const [selectedPath, setSelectedPath] = useState(previewFiles[0]?.path ?? "");
 
   useEffect(() => {
@@ -129,7 +161,39 @@ export default function FilePreview({ deliverables = [], files = [], revisionTra
 
   return (
     <section style={cardStyle}>
-      <h2 style={{ marginTop: 0 }}>File Preview</h2>
+      <div style={headerRowStyle}>
+        <div>
+          <h2 style={{ margin: 0 }}>File Preview</h2>
+          <p style={{ margin: "6px 0 0", color: "#52606d", lineHeight: 1.45 }}>
+            Confirm the revision trace against the actual generated files.
+          </p>
+        </div>
+        <div style={summaryRowStyle}>
+          <span style={summaryBadgeStyle}>{previewFiles.length} preview files</span>
+          {changedFileCount > 0 ? (
+            <span
+              style={{
+                ...summaryBadgeStyle,
+                background: "rgba(40, 99, 163, 0.1)",
+                color: "#2863a3"
+              }}
+            >
+              {changedFileCount} changed in revision
+            </span>
+          ) : null}
+          {removedFiles.length > 0 ? (
+            <span
+              style={{
+                ...summaryBadgeStyle,
+                background: "rgba(155, 28, 28, 0.08)",
+                color: "#9b1c1c"
+              }}
+            >
+              {removedFiles.length} removed
+            </span>
+          ) : null}
+        </div>
+      </div>
 
       {previewFiles.length === 0 ? (
         <p style={{ marginBottom: 0, color: "#52606d" }}>
@@ -308,7 +372,7 @@ function getChangedArtifacts(revisionTrace) {
   return [];
 }
 
-function buildRenderedPreview(files) {
+function buildRenderedPreview(files, { entrypoints = [], selectedPath = "" } = {}) {
   if (!Array.isArray(files) || files.length === 0) {
     return null;
   }
@@ -316,8 +380,21 @@ function buildRenderedPreview(files) {
   const fileMap = new Map(
     files.map((file) => [normalizeAssetPath(file.path), file.content])
   );
+  const htmlCandidates = [
+    selectedPath,
+    ...entrypoints,
+    ...files.map((file) => file.path)
+  ]
+    .map((path) => normalizeAssetPath(path))
+    .filter(Boolean);
   const htmlFile =
-    files.find((file) => file.path.toLowerCase().endsWith(".html")) ?? null;
+    htmlCandidates
+      .map((candidate) =>
+        files.find((file) => normalizeAssetPath(file.path) === candidate) ?? null
+      )
+      .find((file) => isRenderableHtmlFile(file)) ??
+    files.find((file) => isRenderableHtmlFile(file)) ??
+    null;
 
   if (!htmlFile) {
     return null;
@@ -358,6 +435,14 @@ function buildRenderedPreview(files) {
   );
 
   return html;
+}
+
+function isRenderableHtmlFile(file) {
+  if (!file || typeof file?.content !== "string") {
+    return false;
+  }
+
+  return file.path.toLowerCase().endsWith(".html") || /<html[\s>]|<!doctype html/i.test(file.content);
 }
 
 function normalizeAssetPath(path) {

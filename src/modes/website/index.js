@@ -52,6 +52,7 @@ const REACT_ENTRYPOINT_CANDIDATES = [
 export async function runWebsiteMode(context = {}) {
   const runtime = await createModeRuntime(context);
   const emit = createModeEventEmitter(context.onEvent, runtime);
+  const followUpArtifact = sanitizeFollowUpArtifact(runtime.input?.previousArtifact);
 
   emitStageEvent(emit, "architect_started", "architect", "Generating website architecture.");
   const architect = await runArchitectStage(runtime);
@@ -66,23 +67,53 @@ export async function runWebsiteMode(context = {}) {
   const firstPass = await runFirstPassGeneration(runtime, architect, emit);
   await persistWebsiteStep(runtime, STEP_KEYS.coderFirstPass, firstPass.coder);
 
-  emitStageEvent(emit, "ui_critic_started", "ui_critic", "Reviewing first-pass implementation.");
-  const critique = await runCritiqueStage(runtime, architect, firstPass);
-  emitStageEvent(
-    emit,
-    "ui_critic_completed",
-    "ui_critic",
-    summarizeCritiqueResult(critique.uiCritic)
-  );
-  await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
+  let critique;
+  let validatedRevision;
 
-  const revision = await runRevisionStage(runtime, architect, firstPass, critique, emit);
-  const validatedRevision = await retryRevisionForValidatorFailure(
-    runtime,
-    architect,
-    revision,
-    emit
-  );
+  if (followUpArtifact) {
+    critique = { uiCritic: createFollowUpUiCritic() };
+    await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
+    emitStageEvent(
+      emit,
+      "ui_critic_completed",
+      "ui_critic",
+      "Follow-up fast path skipped the extra UI critique pass."
+    );
+
+    const followUpRevision = {
+      firstPassCoder: firstPass.coder,
+      firstPassArtifactCandidate: followUpArtifact,
+      revisedCoder: firstPass.coder,
+      finalCoder: firstPass.coder,
+      finalArtifactCandidate: firstPass.artifactCandidate,
+      summary: createFollowUpRevisionSummary(followUpArtifact, firstPass.artifactCandidate)
+    };
+
+    validatedRevision = await retryRevisionForValidatorFailure(
+      runtime,
+      architect,
+      followUpRevision,
+      emit
+    );
+  } else {
+    emitStageEvent(emit, "ui_critic_started", "ui_critic", "Reviewing first-pass implementation.");
+    critique = await runCritiqueStage(runtime, architect, firstPass);
+    emitStageEvent(
+      emit,
+      "ui_critic_completed",
+      "ui_critic",
+      summarizeCritiqueResult(critique.uiCritic)
+    );
+    await persistWebsiteStep(runtime, STEP_KEYS.uiCritic, critique.uiCritic);
+
+    const revision = await runRevisionStage(runtime, architect, firstPass, critique, emit);
+    validatedRevision = await retryRevisionForValidatorFailure(
+      runtime,
+      architect,
+      revision,
+      emit
+    );
+  }
   await persistRevisionArtifacts(runtime, validatedRevision);
 
   emitStageEvent(emit, "validator_started", "validator", "Validating website artifact.");
@@ -106,6 +137,7 @@ export async function runWebsiteMode(context = {}) {
 
 async function runArchitectStage(runtime) {
   const prompt = await loadModePrompt(MODE_NAME, "architect");
+  const followUpContext = getFollowUpContext(runtime.input);
 
   return runWebsiteJsonStage({
     runtime,
@@ -116,6 +148,8 @@ async function runArchitectStage(runtime) {
     input: {
       mode: MODE_NAME,
       userRequest: runtime.input.userRequest,
+      previous_request: followUpContext.previousRequest,
+      previous_run: followUpContext.previousRun,
       routing: runtime.routing,
       planning: runtime.planning
     },
@@ -216,6 +250,7 @@ async function runCoderStage(
   } = {}
 ) {
   const prompt = await loadModePrompt(MODE_NAME, "coder");
+  const followUpArtifact = sanitizeFollowUpArtifact(runtime.input?.previousArtifact);
 
   emitStageEvent(
     emit,
@@ -242,7 +277,8 @@ async function runCoderStage(
       generation: createCoderGenerationInput({
         passName,
         previousCoder,
-        revisionPlan
+        revisionPlan,
+        followUpArtifact
       })
     },
     expectedOutput: {
@@ -414,8 +450,19 @@ function createRevisionSummary({ plan, selectedStage, revisedCoder }) {
   };
 }
 
-function createCoderGenerationInput({ passName, previousCoder, revisionPlan }) {
+function createCoderGenerationInput({ passName, previousCoder, revisionPlan, followUpArtifact }) {
   if (passName === "first_pass") {
+    if (followUpArtifact) {
+      return {
+        pass: "follow_up_revision",
+        revision_count: 0,
+        max_revision_count: MAX_CODER_REVISIONS,
+        preserve_existing_files: true,
+        requested_change_scope: "targeted_update",
+        previous_artifact: followUpArtifact
+      };
+    }
+
     return {
       pass: "first_pass",
       revision_count: 0,
@@ -441,6 +488,100 @@ function createCoderGenerationInput({ passName, previousCoder, revisionPlan }) {
     previous_coder_output: previousCoder?.parsed ?? null,
     critic_issues: revisionPlan?.issues ?? [],
     revision_instructions: revisionPlan?.instructions ?? []
+  };
+}
+
+function getFollowUpContext(input) {
+  const previousArtifact = sanitizeFollowUpArtifact(input?.previousArtifact);
+  const previousRunId =
+    typeof input?.previousRunId === "string" && input.previousRunId.trim()
+      ? input.previousRunId.trim()
+      : null;
+  const previousRequest =
+    typeof input?.previousRequest === "string" && input.previousRequest.trim()
+      ? input.previousRequest.trim()
+      : null;
+
+  return {
+    previousRequest,
+    previousRun:
+      previousArtifact || previousRunId || previousRequest
+        ? {
+            run_id: previousRunId,
+            user_request: previousRequest,
+            artifact_summary: previousArtifact
+              ? {
+                  mode: previousArtifact.mode ?? null,
+                  output_type: previousArtifact.output_type ?? null,
+                  entrypoints: previousArtifact.entrypoints ?? [],
+                  file_paths: previousArtifact.files.map((file) => file.path)
+                }
+              : null
+          }
+        : null
+  };
+}
+
+function sanitizeFollowUpArtifact(previousArtifact) {
+  if (!previousArtifact || typeof previousArtifact !== "object") {
+    return null;
+  }
+
+  const files = normalizeFiles(previousArtifact.files);
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  return {
+    mode: typeof previousArtifact.mode === "string" ? previousArtifact.mode : MODE_NAME,
+    output_type:
+      typeof previousArtifact.output_type === "string"
+        ? previousArtifact.output_type
+        : detectOutputType(files),
+    entrypoints: Array.isArray(previousArtifact.entrypoints)
+      ? previousArtifact.entrypoints.filter((entry) => typeof entry === "string" && entry.trim())
+      : detectEntrypoints(
+          files,
+          typeof previousArtifact.output_type === "string"
+            ? previousArtifact.output_type
+            : detectOutputType(files)
+        ),
+    files,
+    build_notes: normalizeStringArray(previousArtifact.build_notes),
+    known_limitations: normalizeStringArray(previousArtifact.known_limitations)
+  };
+}
+
+function createFollowUpUiCritic() {
+  return {
+    stage: "ui_critic",
+    ok: true,
+    parsed: {
+      issues: [],
+      passes: ["Follow-up fast path reused the previous artifact and skipped a separate critique pass."],
+      final_recommendation: "approve"
+    }
+  };
+}
+
+function createFollowUpRevisionSummary(previousArtifact, nextArtifact) {
+  const previousFiles = Array.isArray(previousArtifact?.files) ? previousArtifact.files.length : 0;
+  const nextFiles = Array.isArray(nextArtifact?.files) ? nextArtifact.files.length : 0;
+
+  return {
+    stage: "revision",
+    triggered: true,
+    attempts: 1,
+    maxAttempts: MAX_CODER_REVISIONS,
+    recommendation: "approve",
+    issues: [],
+    instructions: [
+      "Apply the user's follow-up request as a targeted update while preserving the existing implementation."
+    ],
+    revisedCoderStage: "coder_first_pass",
+    selectedCoderStage: "coder_first_pass",
+    notes: [`Follow-up update adjusted ${previousFiles} existing file(s) into ${nextFiles} output file(s).`]
   };
 }
 

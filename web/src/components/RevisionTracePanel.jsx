@@ -130,6 +130,33 @@ const stateNoticeStyle = {
   lineHeight: 1.45
 };
 
+const changedSummaryStyle = {
+  marginTop: "18px",
+  padding: "14px",
+  borderRadius: "14px",
+  background: "rgba(40, 99, 163, 0.06)",
+  border: "1px solid rgba(40, 99, 163, 0.14)"
+};
+
+const changedSummaryListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "8px",
+  marginTop: "10px"
+};
+
+const changedFileBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  background: "rgba(255, 255, 255, 0.82)",
+  border: "1px solid rgba(40, 99, 163, 0.12)",
+  color: "#1f2933",
+  fontSize: "0.8rem"
+};
+
 export default function RevisionTracePanel({ revisionTrace }) {
   const trace = normalizeRevisionTrace(revisionTrace);
   const badge = getTraceBadge(trace);
@@ -186,6 +213,28 @@ export default function RevisionTracePanel({ revisionTrace }) {
             <MetaStat label="Validator" value={trace.validatorStatus || "unknown"} />
             <MetaStat label="Trace ID" value={trace.traceId || "n/a"} mono />
           </div>
+
+          {trace.changedFiles.length > 0 ? (
+            <section style={changedSummaryStyle}>
+              <p style={{ margin: 0, fontWeight: 700, color: "#1f2933" }}>
+                Changed files ready for preview
+              </p>
+              <p style={{ ...itemTextStyle, marginTop: "6px" }}>
+                Review what changed here, then confirm the actual file output in the preview panel.
+              </p>
+              <div style={changedSummaryListStyle}>
+                {trace.changedFiles.slice(0, 4).map((file) => (
+                  <span key={file.identifier} style={changedFileBadgeStyle}>
+                    <span style={codeStyle}>{file.identifier}</span>
+                    <span>{file.change_type}</span>
+                  </span>
+                ))}
+                {trace.changedFiles.length > 4 ? (
+                  <span style={changedFileBadgeStyle}>+{trace.changedFiles.length - 4} more</span>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <TraceSection title="Critic Issues" emptyLabel="No critic issues recorded.">
             {trace.criticIssues.map((issue) => (

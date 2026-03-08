@@ -15,7 +15,13 @@ export function createRoutes(options = {}) {
   });
 
   router.post("/run", (request, response) => {
-    const { userRequest, modeHint = null } = request.body ?? {};
+    const {
+      userRequest,
+      modeHint = null,
+      previousRunId = null,
+      previousRequest = null,
+      previousArtifact = null
+    } = request.body ?? {};
 
     if (typeof userRequest !== "string" || userRequest.trim() === "") {
       response.status(400).json({
@@ -31,6 +37,27 @@ export function createRoutes(options = {}) {
       return;
     }
 
+    if (previousRunId !== null && typeof previousRunId !== "string") {
+      response.status(400).json({
+        error: "`previousRunId` must be a string when provided."
+      });
+      return;
+    }
+
+    if (previousRequest !== null && typeof previousRequest !== "string") {
+      response.status(400).json({
+        error: "`previousRequest` must be a string when provided."
+      });
+      return;
+    }
+
+    if (previousArtifact !== null && !isPlainObject(previousArtifact)) {
+      response.status(400).json({
+        error: "`previousArtifact` must be an object when provided."
+      });
+      return;
+    }
+
     const runId = randomUUID();
     const runRecord = {
       runId,
@@ -40,7 +67,10 @@ export function createRoutes(options = {}) {
       acceptedAt: new Date().toISOString(),
       input: {
         userRequest: userRequest.trim(),
-        modeHint: modeHint?.trim() || null
+        modeHint: modeHint?.trim() || null,
+        previousRunId: previousRunId?.trim() || null,
+        previousRequest: previousRequest?.trim() || null,
+        previousArtifact: previousArtifact ? sanitizePreviousArtifact(previousArtifact) : null
       },
       pipelineRunId: null,
       lastEvent: null,
@@ -70,6 +100,9 @@ export function createRoutes(options = {}) {
     void executeRun({
       userRequest: runRecord.input.userRequest,
       modeHint: runRecord.input.modeHint,
+      previousRunId: runRecord.input.previousRunId,
+      previousRequest: runRecord.input.previousRequest,
+      previousArtifact: runRecord.input.previousArtifact,
       onEvent
     })
       .then((result) => {
@@ -132,6 +165,42 @@ export function createRoutes(options = {}) {
   });
 
   return router;
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function sanitizePreviousArtifact(previousArtifact) {
+  const files = Array.isArray(previousArtifact?.files)
+    ? previousArtifact.files
+        .filter((file) => typeof file?.path === "string" && typeof file?.content === "string")
+        .map((file) => ({
+          path: file.path.trim(),
+          content: file.content
+        }))
+        .filter((file) => file.path)
+    : [];
+
+  return compactObject({
+    mode: typeof previousArtifact?.mode === "string" ? previousArtifact.mode.trim() : null,
+    output_type:
+      typeof previousArtifact?.output_type === "string"
+        ? previousArtifact.output_type.trim()
+        : null,
+    entrypoints: Array.isArray(previousArtifact?.entrypoints)
+      ? previousArtifact.entrypoints.filter((value) => typeof value === "string" && value.trim())
+      : null,
+    files,
+    build_notes: Array.isArray(previousArtifact?.build_notes)
+      ? previousArtifact.build_notes.filter((value) => typeof value === "string" && value.trim())
+      : null,
+    known_limitations: Array.isArray(previousArtifact?.known_limitations)
+      ? previousArtifact.known_limitations.filter(
+          (value) => typeof value === "string" && value.trim()
+        )
+      : null
+  });
 }
 
 function normalizeWebsocketEvent(event, runRecord) {
