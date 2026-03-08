@@ -52,7 +52,13 @@ async function runCase(testCase) {
       workingDir: process.cwd()
     });
     const validationOk = pipelineResult?.validation?.ok === true;
-    const status = validationOk ? "passed" : "failed";
+    const revisionOccurred = didRevisionOccur(pipelineResult);
+    const revisionTraceExists = hasRevisionTrace(pipelineResult);
+    const validatorOutcome = getValidatorOutcome(pipelineResult);
+    const overallRunStatus = getOverallRunStatus(pipelineResult, validationOk);
+    const readyForCompletion =
+      validationOk && overallRunStatus === "ok" && (!revisionOccurred || revisionTraceExists);
+    const status = readyForCompletion ? "passed" : "failed";
 
     return {
       id: testCase.id,
@@ -61,9 +67,21 @@ async function runCase(testCase) {
       status,
       durationMs: Date.now() - startedAt,
       validationOk,
+      readyForCompletion,
+      revisionOccurred,
+      revisionTraceExists,
+      validatorOutcome,
+      finalizerDurationMs: pipelineResult?.finalizerTiming?.durationMs ?? null,
+      overallRunStatus,
       mode: pipelineResult?.mode ?? null,
       runId: pipelineResult?.state?.runId ?? null,
-      error: validationOk ? null : summarizeValidationErrors(pipelineResult?.validation),
+      error: buildCaseError({
+        validationOk,
+        revisionOccurred,
+        revisionTraceExists,
+        overallRunStatus,
+        validation: pipelineResult?.validation
+      }),
       validation: pipelineResult?.validation ?? null
     };
   } catch (error) {
@@ -74,6 +92,17 @@ async function runCase(testCase) {
       status: "failed",
       durationMs: Date.now() - startedAt,
       validationOk: false,
+      readyForCompletion: false,
+      revisionOccurred: false,
+      revisionTraceExists: false,
+      validatorOutcome: {
+        decision: null,
+        ok: false,
+        errorCount: 0,
+        reasons: []
+      },
+      finalizerDurationMs: null,
+      overallRunStatus: "run_failed",
       mode: null,
       runId: null,
       error: error instanceof Error ? error.message : String(error),
@@ -82,18 +111,84 @@ async function runCase(testCase) {
   }
 }
 
+function didRevisionOccur(pipelineResult) {
+  return pipelineResult?.state?.steps?.revision_summary?.triggered === true;
+}
+
+function hasRevisionTrace(pipelineResult) {
+  return pipelineResult?.state?.steps?.revision_trace != null;
+}
+
+function getValidatorOutcome(pipelineResult) {
+  const validatorStep = pipelineResult?.state?.steps?.validator;
+  const validation = pipelineResult?.validation;
+  const reasons = [
+    ...normalizeStringArray(validatorStep?.parsed?.reasons),
+    ...normalizeValidationMessages(validation)
+  ];
+
+  return {
+    decision: validatorStep?.parsed?.status ?? validation?.recommendation ?? null,
+    ok: validation?.ok === true,
+    errorCount: Array.isArray(validation?.errors) ? validation.errors.length : 0,
+    reasons: [...new Set(reasons)]
+  };
+}
+
+function getOverallRunStatus(pipelineResult, validationOk) {
+  if (typeof pipelineResult?.status === "string") {
+    return pipelineResult.status;
+  }
+
+  return validationOk ? "ok" : "validation_failed";
+}
+
+function buildCaseError({
+  validationOk,
+  revisionOccurred,
+  revisionTraceExists,
+  overallRunStatus,
+  validation
+}) {
+  if (!validationOk) {
+    return summarizeValidationErrors(validation);
+  }
+
+  if (revisionOccurred && !revisionTraceExists) {
+    return "Revision occurred without a persisted revision trace.";
+  }
+
+  if (overallRunStatus !== "ok") {
+    return `Run status was ${overallRunStatus}.`;
+  }
+
+  return null;
+}
+
 function summarizeValidationErrors(validation) {
-  const messages = Array.isArray(validation?.errors)
-    ? validation.errors
-        .map((issue) => issue?.message)
-        .filter((message) => typeof message === "string" && message.trim())
-    : [];
+  const messages = normalizeValidationMessages(validation);
 
   if (messages.length === 0) {
     return "Validation failed without reported errors.";
   }
 
   return messages.join(" | ");
+}
+
+function normalizeValidationMessages(validation) {
+  return Array.isArray(validation?.errors)
+    ? validation.errors
+        .map((issue) => issue?.message)
+        .filter((message) => typeof message === "string" && message.trim())
+    : [];
+}
+
+function normalizeStringArray(values) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  return values.filter((value) => typeof value === "string" && value.trim());
 }
 
 function printCaseSummary(result) {
@@ -105,6 +200,17 @@ function printCaseSummary(result) {
 function buildSummary(results, startedAt) {
   const passed = results.filter((result) => result.status === "passed").length;
   const failed = results.length - passed;
+  const revisedCount = results.filter((result) => result.revisionOccurred).length;
+  const missingRevisionTraceCount = results.filter(
+    (result) => result.revisionOccurred && !result.revisionTraceExists
+  ).length;
+  const validationFailedCount = results.filter((result) => !result.validationOk).length;
+  const runStatusCounts = countBy(results, (result) => result.overallRunStatus ?? "unknown");
+  const readiness = buildCompletionGate(results, {
+    failed,
+    missingRevisionTraceCount,
+    validationFailedCount
+  });
 
   return {
     startedAt,
@@ -112,8 +218,56 @@ function buildSummary(results, startedAt) {
     total: results.length,
     passed,
     failed,
+    revisedCount,
+    missingRevisionTraceCount,
+    validationFailedCount,
+    runStatusCounts,
+    completionGate: readiness,
     results
   };
+}
+
+function buildCompletionGate(results, counts) {
+  const blockers = [];
+
+  if (counts.failed > 0) {
+    blockers.push(`${counts.failed} smoke case(s) did not satisfy the completion gate`);
+  }
+
+  if (counts.validationFailedCount > 0) {
+    blockers.push(`${counts.validationFailedCount} case(s) failed validator approval`);
+  }
+
+  if (counts.missingRevisionTraceCount > 0) {
+    blockers.push(
+      `${counts.missingRevisionTraceCount} revised case(s) are missing a persisted revision trace`
+    );
+  }
+
+  return {
+    readyToMoveOn: blockers.length === 0,
+    status: blockers.length === 0 ? "ready" : "not_ready",
+    blockers,
+    evaluatedCases: results.map((result) => ({
+      id: result.id,
+      ready: result.readyForCompletion,
+      revisionOccurred: result.revisionOccurred,
+      revisionTraceExists: result.revisionTraceExists,
+      validatorDecision: result.validatorOutcome?.decision ?? null,
+      overallRunStatus: result.overallRunStatus
+    }))
+  };
+}
+
+function countBy(items, keySelector) {
+  const counts = {};
+
+  for (const item of items) {
+    const key = keySelector(item);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  return counts;
 }
 
 async function writeSummary(summary) {
@@ -131,6 +285,9 @@ async function writeSummary(summary) {
 function printFinalSummary(summary, summaryPath) {
   console.log(
     `Done: ${summary.passed}/${summary.total} passed, ${summary.failed} failed.`
+  );
+  console.log(
+    `Website completion gate: ${summary.completionGate.status.toUpperCase()}`
   );
   console.log(`Summary: ${summaryPath}`);
 }

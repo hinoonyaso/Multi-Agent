@@ -71,3 +71,12 @@ Before moving on to `docx` mode, `website` mode should satisfy all of the follow
 - Validator checks catch structural website issues such as missing files, missing entrypoints, duplicate paths, or contract-breaking output.
 - Website smoke test cases run as a small repeatable regression set.
 - Major pipeline artifacts are persisted in run state so failed or degraded runs can be debugged without rerunning blindly.
+
+## Website Mode Final Hardening
+
+Before moving on to `docx` mode, finish the last website hardening pass:
+
+- Revision observability setup: confirm revised runs persist `revision_summary` and `revision_trace`, and treat missing traces on revised runs as a release blocker.
+- Finalizer minimization: keep website finalization limited to narrow packaging work; if it is still placeholder behavior, do not treat website mode as done.
+- Smoke rerun expectations: rerun `node tests/runWebsiteSmoke.js` after website pipeline, validator, or finalizer changes and expect the full smoke corpus to pass with no completion-gate blockers.
+- Completion report usage: run `node tests/reportWebsiteCompletion.js` against the latest smoke summary to get the move-on recommendation, then do not proceed to `docx` until it reports `READY`.
