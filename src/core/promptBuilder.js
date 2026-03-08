@@ -40,6 +40,14 @@ export async function buildPlannerPrompt(input) {
 export async function buildModeAgentPrompt({ mode, agent, input } = {}) {
   const normalizedMode = normalizeRequiredName(mode, "mode");
   const normalizedAgent = normalizeRequiredName(agent, "agent");
+
+  if (normalizedAgent === "finalizer") {
+    return buildFinalizerPrompt({
+      mode: normalizedMode,
+      input
+    });
+  }
+
   const [coreSystemPrompt, rolePrompt, modePrompt, contractSummary] =
     await Promise.all([
       loadCoreSystemPrompt(),
@@ -53,6 +61,22 @@ export async function buildModeAgentPrompt({ mode, agent, input } = {}) {
     rolePrompt,
     modePrompt,
     contractSummary,
+    inputBlock: input
+  });
+}
+
+export async function buildFinalizerPrompt({ mode, input } = {}) {
+  const normalizedMode = normalizeRequiredName(mode, "mode");
+  const [coreSystemPrompt, rolePrompt, modePrompt] = await Promise.all([
+    loadCoreSystemPrompt(),
+    safeLoadRolePrompt("finalizer"),
+    safeLoadModePrompt(normalizedMode, "finalizer")
+  ]);
+
+  return assembleFinalizerPrompt({
+    coreSystemPrompt,
+    rolePrompt,
+    modePrompt,
     inputBlock: input
   });
 }
@@ -71,6 +95,28 @@ function assemblePrompt({
     createSection("Contract Summary", contractSummary),
     createSection("Task Input", formatInputBlock(inputBlock))
   ];
+
+  return `${sections.join("\n\n")}\n`;
+}
+
+function assembleFinalizerPrompt({
+  coreSystemPrompt,
+  rolePrompt,
+  modePrompt,
+  inputBlock
+}) {
+  const sections = [
+    createSection("System", coreSystemPrompt),
+    createSection("Role", rolePrompt ?? "Not provided.")
+  ];
+
+  // Finalization should run on the smallest useful prompt surface. Only include
+  // a mode-specific addendum when a real finalizer prompt exists for that mode.
+  if (modePrompt) {
+    sections.push(createSection("Mode", modePrompt));
+  }
+
+  sections.push(createSection("Input", formatInputBlock(inputBlock)));
 
   return `${sections.join("\n\n")}\n`;
 }

@@ -19,6 +19,12 @@ const rowStyle = {
   borderBottom: "1px solid rgba(255, 255, 255, 0.08)"
 };
 
+const finalizerRowStyle = {
+  ...rowStyle,
+  borderLeft: "3px solid #f59e0b",
+  paddingLeft: "10px"
+};
+
 const metaStyle = {
   display: "flex",
   gap: "10px",
@@ -27,6 +33,32 @@ const metaStyle = {
   fontSize: "0.8rem",
   color: "#94a3b8",
   fontFamily: "monospace"
+};
+
+const timingStyle = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+  marginBottom: "6px",
+  fontSize: "0.78rem",
+  color: "#cbd5e1",
+  fontFamily: "monospace"
+};
+
+const timingBadgeStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "2px 8px",
+  borderRadius: "999px",
+  background: "rgba(148, 163, 184, 0.14)",
+  border: "1px solid rgba(148, 163, 184, 0.22)"
+};
+
+const finalizerTimingBadgeStyle = {
+  ...timingBadgeStyle,
+  color: "#fbbf24",
+  background: "rgba(245, 158, 11, 0.14)",
+  border: "1px solid rgba(245, 158, 11, 0.35)"
 };
 
 const summaryStyle = {
@@ -52,18 +84,40 @@ export default function LogPanel({ events = [] }) {
         <p style={{ margin: 0, color: "#94a3b8" }}>No log events yet.</p>
       ) : (
         <div style={logViewportStyle}>
-          {orderedEvents.map((event, index) => (
-            <div
-              key={`${event?.timestamp ?? "event"}-${event?.eventType ?? event?.type ?? index}`}
-              style={rowStyle}
-            >
-              <div style={metaStyle}>
-                <span>{formatTimestamp(event?.timestamp)}</span>
-                <span>{event?.eventType || event?.type || "event"}</span>
+          {orderedEvents.map((event, index) => {
+            const eventType = event?.eventType || event?.type || "event";
+            const isFinalizerEvent = isFinalizerEventType(event);
+            const timingEntries = getTimingEntries(event);
+
+            return (
+              <div
+                key={`${event?.timestamp ?? "event"}-${eventType}-${index}`}
+                style={isFinalizerEvent ? finalizerRowStyle : rowStyle}
+              >
+                <div style={metaStyle}>
+                  <span>{formatTimestamp(event?.timestamp)}</span>
+                  <span>{eventType}</span>
+                </div>
+                {timingEntries.length > 0 ? (
+                  <div style={timingStyle}>
+                    {timingEntries.map((entry) => (
+                      <span
+                        key={entry.label}
+                        style={
+                          isFinalizerEvent && entry.emphasize
+                            ? finalizerTimingBadgeStyle
+                            : timingBadgeStyle
+                        }
+                      >
+                        {entry.label}: {entry.value}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <p style={summaryStyle}>{event?.summary || "No summary provided."}</p>
               </div>
-              <p style={summaryStyle}>{event?.summary || "No summary provided."}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -86,4 +140,55 @@ function formatTimestamp(value) {
     minute: "2-digit",
     second: "2-digit"
   });
+}
+
+function isFinalizerEventType(event) {
+  const type = String(event?.eventType || event?.type || "").toLowerCase();
+  const step = String(event?.step || "").toLowerCase();
+  return type.includes("finalizer") || step === "finalizer";
+}
+
+function getTimingEntries(event) {
+  const entries = [];
+  const duration = formatDuration(event?.durationMs ?? event?.duration_ms);
+  const startedAt = formatTimestamp(event?.startedAt ?? event?.started_at);
+  const completedAt = formatTimestamp(event?.completedAt ?? event?.completed_at);
+
+  if (duration) {
+    entries.push({
+      label: "duration",
+      value: duration,
+      emphasize: true
+    });
+  }
+
+  if (startedAt !== "--:--:--") {
+    entries.push({
+      label: "start",
+      value: startedAt,
+      emphasize: false
+    });
+  }
+
+  if (completedAt !== "--:--:--") {
+    entries.push({
+      label: "end",
+      value: completedAt,
+      emphasize: false
+    });
+  }
+
+  return entries;
+}
+
+function formatDuration(value) {
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  if (value < 1000) {
+    return `${Math.round(value)}ms`;
+  }
+
+  return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}s`;
 }

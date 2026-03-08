@@ -97,6 +97,24 @@ export function buildWebsiteValidatorContext({ generatedFiles, contract } = {}) 
   };
 }
 
+export function buildFinalizerContext({
+  mode,
+  approvedArtifact,
+  validationResult,
+  runMetadata
+} = {}) {
+  return {
+    // The finalizer only needs the selected mode to package against the right artifact contract.
+    mode: normalizeOptionalString(mode),
+    // Pass only the approved artifact itself so the finalizer packages instead of regenerating.
+    approvedArtifact: summarizeApprovedArtifact(approvedArtifact),
+    // Keep validation input terse: enough to avoid packaging invalid output, not enough to re-litigate the run.
+    validationSummary: summarizeValidationSummary(validationResult),
+    // Include only a tiny operational slice of metadata when it may help packaging behavior.
+    runMetadata: summarizeRunMetadata(runMetadata)
+  };
+}
+
 function summarizeRouterResult(routerResult) {
   if (!routerResult || typeof routerResult !== "object") {
     return null;
@@ -242,6 +260,94 @@ function summarizeGeneratedFiles(generatedFiles) {
       content: file.content
     }))
   };
+}
+
+function summarizeApprovedArtifact(approvedArtifact) {
+  // Prefer the approved artifact payload itself and strip common runner wrappers so the
+  // finalizer does not receive step metadata, transcripts, or other intermediate state.
+  const unwrappedArtifact = unwrapApprovedArtifact(approvedArtifact);
+
+  if (unwrappedArtifact == null) {
+    return null;
+  }
+
+  return unwrappedArtifact;
+}
+
+function unwrapApprovedArtifact(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value ?? null;
+  }
+
+  if (value.approvedArtifact !== undefined) {
+    return unwrapApprovedArtifact(value.approvedArtifact);
+  }
+
+  if (value.artifact !== undefined) {
+    return unwrapApprovedArtifact(value.artifact);
+  }
+
+  if (value.parsed !== undefined) {
+    return unwrapApprovedArtifact(value.parsed);
+  }
+
+  if (value.output !== undefined) {
+    return unwrapApprovedArtifact(value.output);
+  }
+
+  return value;
+}
+
+function summarizeValidationSummary(validationResult) {
+  if (!validationResult || typeof validationResult !== "object") {
+    return null;
+  }
+
+  return compactObject({
+    // The packaging layer mainly needs pass/fail state and a short issue summary.
+    ok: typeof validationResult.ok === "boolean" ? validationResult.ok : undefined,
+    errorCount: countEntries(validationResult.errors),
+    warningCount: countEntries(validationResult.warnings),
+    issues: summarizeValidationIssues(validationResult.errors)
+  });
+}
+
+function summarizeValidationIssues(errors) {
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+
+  return errors
+    .slice(0, 5)
+    .map((error) => {
+      if (typeof error === "string") {
+        return normalizeOptionalString(error);
+      }
+
+      if (!error || typeof error !== "object") {
+        return null;
+      }
+
+      return compactObject({
+        code: normalizeOptionalString(error.code),
+        path: normalizeOptionalString(error.path),
+        message: firstDefinedString(error.message, error.summary, error.detail)
+      });
+    })
+    .filter(Boolean);
+}
+
+function summarizeRunMetadata(runMetadata) {
+  if (!runMetadata || typeof runMetadata !== "object") {
+    return null;
+  }
+
+  return compactObject({
+    // Only retain metadata that can affect packaging mechanics; exclude history and planner state.
+    runId: firstDefinedString(runMetadata.runId, runMetadata.run_id),
+    workingDir: firstDefinedString(runMetadata.workingDir, runMetadata.working_dir),
+    attempt: Number.isInteger(runMetadata.attempt) ? runMetadata.attempt : undefined
+  });
 }
 
 function summarizeContract(contract, options = {}) {
@@ -497,6 +603,10 @@ function firstDefinedBoolean(...values) {
   }
 
   return undefined;
+}
+
+function countEntries(value) {
+  return Array.isArray(value) ? value.length : undefined;
 }
 
 function compactObject(value) {

@@ -1,18 +1,16 @@
 import { createCodexRunner } from "./codexRunner.js";
 import {
+  buildFinalizerContext,
   buildPlannerContext,
   buildRouterContext,
   buildWebsiteArchitectContext
 } from "./contextBuilder.js";
 import {
+  buildFinalizerPrompt,
   buildPlannerPrompt,
   buildRouterPrompt
 } from "./promptBuilder.js";
-import {
-  loadContract,
-  loadCoreSystemPrompt,
-  loadRolePrompt
-} from "./promptLoader.js";
+import { loadContract } from "./promptLoader.js";
 import { createRetryPolicy } from "./retryPolicy.js";
 import { selectModePipeline } from "./router.js";
 import {
@@ -180,27 +178,36 @@ async function runPipelineInternal(input, dependencies, onEvent = null) {
     });
 
     currentStep = "finalizer";
+    const finalizerStartedAt = new Date().toISOString();
+    const finalizerStartTimeMs = Date.now();
     emit({
       type: "finalizer_started",
       step: "finalizer",
       mode: selectedMode,
-      summary: "Packaging final response."
+      summary: "Packaging final response.",
+      startedAt: finalizerStartedAt
     });
     const finalization = await finalizeRun({
       codexRunner,
       input,
+      runState,
       selectedMode,
       routing,
       planning,
       pipelineResult,
-      validation
+      validation,
+      finalizerStartedAt,
+      finalizerStartTimeMs
     });
     await persistFinalRun(runState, finalization);
     emit({
       type: "finalizer_completed",
       step: "finalizer",
       mode: selectedMode,
-      summary: "Final response packaging completed."
+      summary: `Final response packaging completed in ${finalization.finalizerTiming.durationMs}ms.`,
+      startedAt: finalization.finalizerTiming.startedAt,
+      completedAt: finalization.finalizerTiming.completedAt,
+      durationMs: finalization.finalizerTiming.durationMs
     });
 
     const state = await loadRunState(runState.runId);
@@ -308,35 +315,50 @@ async function runPlanningStage({
 async function finalizeRun({
   codexRunner,
   input,
+  runState,
   selectedMode,
   routing,
   planning,
   pipelineResult,
-  validation
+  validation,
+  finalizerStartedAt,
+  finalizerStartTimeMs
 }) {
-  const coreSystemPrompt = await loadCoreSystemPrompt();
-  const finalizerPrompt = await loadRolePrompt("finalizer");
+  const finalizerContext = buildFinalizerContext({
+    mode: selectedMode,
+    approvedArtifact: pipelineResult,
+    validationResult: validation,
+    runMetadata: {
+      runId: runState?.runId,
+      workingDir: input.workingDir
+    }
+  });
+  const finalizerPrompt = await buildFinalizerPrompt({
+    mode: selectedMode,
+    input: finalizerContext
+  });
   const packagingResult = await codexRunner.run({
     stage: "finalizer",
-    systemPrompt: coreSystemPrompt,
-    rolePrompt: finalizerPrompt,
-    input: {
-      userRequest: input.userRequest,
-      selectedMode,
-      pipelineResult,
-      validation
-    },
+    prompt: finalizerPrompt,
+    input: finalizerContext,
     expectedOutput: {
       artifact: pipelineResult,
       note: "TODO: replace placeholder packaging with deliverable-specific final output formatting."
     }
   });
+  const finalizerCompletedAt = new Date().toISOString();
+  const finalizerTiming = {
+    startedAt: finalizerStartedAt ?? finalizerCompletedAt,
+    completedAt: finalizerCompletedAt,
+    durationMs: Math.max(0, Date.now() - (finalizerStartTimeMs ?? Date.now()))
+  };
 
   return {
     status: validation.ok ? "ok" : "validation_failed",
     userRequest: input.userRequest,
     mode: selectedMode,
     workingDir: input.workingDir,
+    finalizerTiming,
     routing,
     planning,
     pipelineResult,
