@@ -9,6 +9,8 @@ import {
   buildContractRepairPrompt,
   buildInvalidJsonRepairPrompt
 } from "../../core/repairPromptBuilder.js";
+import { buildRevisionTrace } from "../../core/revisionTraceBuilder.js";
+import { diffFileArtifacts } from "../../core/artifactDiff.js";
 import { RETRY_ERROR_TYPES } from "../../core/retryPolicy.js";
 import {
   createModeRuntime,
@@ -23,6 +25,7 @@ const STEP_KEYS = Object.freeze({
   coderFirstPass: "coder_first_pass",
   uiCritic: "ui_critic",
   revisionSummary: "revision_summary",
+  revisionTrace: "revision_trace",
   coderRevision: "coder_revision",
   coderFinal: "coder_final",
   validator: "validator"
@@ -96,6 +99,7 @@ export async function runWebsiteMode(context = {}) {
     summarizeValidatorResult(validator)
   );
   await persistWebsiteStep(runtime, STEP_KEYS.validator, validator);
+  await persistRevisionTrace(runtime, critique.uiCritic, validatedRevision, validator);
 
   return validatedRevision.finalArtifactCandidate;
 }
@@ -158,6 +162,7 @@ async function runRevisionStage(runtime, architect, firstPass, critique, emit) {
   if (!plan.shouldRevise) {
     return {
       firstPassCoder: firstPass.coder,
+      firstPassArtifactCandidate: firstPass.artifactCandidate,
       revisedCoder: null,
       finalCoder: firstPass.coder,
       finalArtifactCandidate: firstPass.artifactCandidate,
@@ -186,6 +191,7 @@ async function runRevisionStage(runtime, architect, firstPass, critique, emit) {
 
   return {
     firstPassCoder: firstPass.coder,
+    firstPassArtifactCandidate: firstPass.artifactCandidate,
     revisedCoder,
     finalCoder: revisedCoder,
     finalArtifactCandidate: buildWebsiteArtifact(revisedCoder.parsed),
@@ -707,6 +713,28 @@ async function persistRevisionArtifacts(runtime, revision) {
   await persistWebsiteStep(runtime, STEP_KEYS.coderFinal, revision.finalCoder);
 }
 
+async function persistRevisionTrace(runtime, uiCritic, revision, validator) {
+  if (!revision?.revisedCoder) {
+    return null;
+  }
+
+  const previousFiles = revision.firstPassArtifactCandidate?.files ?? [];
+  const revisedFiles = revision.finalArtifactCandidate?.files ?? [];
+  const artifactDiff = diffFileArtifacts(previousFiles, revisedFiles);
+  const trace = buildRevisionTrace({
+    mode: MODE_NAME,
+    criticResult: uiCritic,
+    revisionInstruction: revision.summary?.instructions ?? [],
+    previousArtifact: revision.firstPassArtifactCandidate,
+    revisedArtifact: revision.finalArtifactCandidate,
+    validatorResult: validator,
+    metadata: buildRevisionTraceMetadata(runtime, artifactDiff)
+  });
+
+  await persistWebsiteStep(runtime, STEP_KEYS.revisionTrace, trace);
+  return trace;
+}
+
 async function persistWebsiteStep(runtime, stepName, data) {
   return runtime.save(stepName, data);
 }
@@ -789,6 +817,33 @@ function createContractRepairPlan(contractValidation) {
     instructions: issues,
     shouldRevise: true
   };
+}
+
+function buildRevisionTraceMetadata(runtime, artifactDiff) {
+  return {
+    created_at: new Date().toISOString(),
+    run_id: runtime.runState?.runId ?? null,
+    trace_scope: "single_revision",
+    source_step_name: STEP_KEYS.coderFirstPass,
+    source_step_type: "agent",
+    source_step: {
+      selection: buildRevisionTraceSelection(artifactDiff)
+    }
+  };
+}
+
+function buildRevisionTraceSelection(artifactDiff) {
+  const summaries = Array.isArray(artifactDiff?.per_file_summary)
+    ? artifactDiff.per_file_summary
+    : [];
+
+  return summaries
+    .filter((entry) => entry?.content_changed)
+    .map((entry) => ({
+      artifact_type: "file",
+      path: entry.path,
+      note: entry.summary
+    }));
 }
 
 function normalizeStepKey(value) {

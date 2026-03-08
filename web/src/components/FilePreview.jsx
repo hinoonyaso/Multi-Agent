@@ -37,6 +37,45 @@ const buttonStyle = {
   cursor: "pointer"
 };
 
+const fileButtonHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "8px"
+};
+
+const filePathStyle = {
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap"
+};
+
+const changeTagStyle = {
+  flexShrink: 0,
+  padding: "2px 6px",
+  borderRadius: "999px",
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em"
+};
+
+const fileMetaStyle = {
+  marginTop: "6px",
+  fontSize: "0.78rem",
+  color: "#52606d",
+  lineHeight: 1.35
+};
+
+const removedBlockStyle = {
+  marginTop: "14px",
+  padding: "12px 14px",
+  borderRadius: "12px",
+  background: "rgba(155, 28, 28, 0.05)",
+  border: "1px solid rgba(155, 28, 28, 0.12)"
+};
+
 const previewStyle = {
   margin: 0,
   padding: "14px",
@@ -60,10 +99,18 @@ const frameStyle = {
   background: "#ffffff"
 };
 
-export default function FilePreview({ deliverables = [], files = [] }) {
+export default function FilePreview({ deliverables = [], files = [], revisionTrace = null }) {
   const previewFiles = useMemo(
     () => normalizePreviewFiles({ deliverables, files }),
     [deliverables, files]
+  );
+  const fileChangeMap = useMemo(
+    () => buildFileChangeMap(revisionTrace),
+    [revisionTrace]
+  );
+  const removedFiles = useMemo(
+    () => getRemovedFiles(revisionTrace),
+    [revisionTrace]
   );
   const renderedPreview = useMemo(
     () => buildRenderedPreview(previewFiles),
@@ -93,6 +140,11 @@ export default function FilePreview({ deliverables = [], files = [] }) {
           <ol style={listStyle}>
             {previewFiles.map((file) => (
               <li key={file.path}>
+                {(() => {
+                  const change = fileChangeMap.get(file.path) ?? null;
+                  const changeTone = getChangeTone(change?.changeType);
+
+                  return (
                 <button
                   type="button"
                   onClick={() => setSelectedPath(file.path)}
@@ -102,11 +154,31 @@ export default function FilePreview({ deliverables = [], files = [] }) {
                     borderColor:
                       file.path === selectedFile?.path
                         ? "rgba(40, 99, 163, 0.36)"
-                        : "rgba(31, 41, 51, 0.12)"
+                        : changeTone.borderColor
                   }}
                 >
-                  {file.path}
+                  <div style={fileButtonHeaderStyle}>
+                    <span style={filePathStyle} title={file.path}>
+                      {file.path}
+                    </span>
+                    {change ? (
+                      <span
+                        style={{
+                          ...changeTagStyle,
+                          background: changeTone.background,
+                          color: changeTone.color
+                        }}
+                      >
+                        {change.changeType}
+                      </span>
+                    ) : null}
+                  </div>
+                  {change?.summary ? (
+                    <div style={fileMetaStyle}>{change.summary}</div>
+                  ) : null}
                 </button>
+                  );
+                })()}
               </li>
             ))}
           </ol>
@@ -115,6 +187,16 @@ export default function FilePreview({ deliverables = [], files = [] }) {
             <p style={{ marginTop: 0, marginBottom: "8px", color: "#52606d" }}>
               {selectedFile?.path ?? "No file selected"}
             </p>
+            {removedFiles.length > 0 ? (
+              <div style={removedBlockStyle}>
+                <p style={{ margin: "0 0 6px", color: "#9b1c1c", fontWeight: 700 }}>
+                  Removed in revision
+                </p>
+                <p style={{ margin: 0, color: "#7b8794", lineHeight: 1.45 }}>
+                  {removedFiles.map((file) => file.identifier).join(", ")}
+                </p>
+              </div>
+            ) : null}
             {renderedPreview ? (
               <>
                 <p style={{ marginTop: 0, marginBottom: "8px", color: "#52606d" }}>
@@ -180,6 +262,52 @@ function normalizePreviewFiles({ deliverables, files }) {
   return dedupedFiles;
 }
 
+function buildFileChangeMap(revisionTrace) {
+  const changedArtifacts = getChangedArtifacts(revisionTrace);
+
+  return changedArtifacts.reduce((result, entry) => {
+    if (entry?.artifact_type !== "file" || typeof entry?.identifier !== "string") {
+      return result;
+    }
+
+    const path = entry.identifier.trim();
+
+    if (!path) {
+      return result;
+    }
+
+    result.set(path, {
+      changeType: typeof entry.change_type === "string" ? entry.change_type : "modified",
+      summary: typeof entry.summary === "string" ? entry.summary.trim() : ""
+    });
+
+    return result;
+  }, new Map());
+}
+
+function getRemovedFiles(revisionTrace) {
+  return getChangedArtifacts(revisionTrace).filter(
+    (entry) => entry?.artifact_type === "file" && entry?.change_type === "removed"
+  );
+}
+
+function getChangedArtifacts(revisionTrace) {
+  if (Array.isArray(revisionTrace?.changed_artifacts)) {
+    return revisionTrace.changed_artifacts;
+  }
+
+  if (Array.isArray(revisionTrace?.changedFiles)) {
+    return revisionTrace.changedFiles.map((entry) => ({
+      artifact_type: "file",
+      identifier: entry?.identifier,
+      change_type: entry?.change_type,
+      summary: entry?.summary
+    }));
+  }
+
+  return [];
+}
+
 function buildRenderedPreview(files) {
   if (!Array.isArray(files) || files.length === 0) {
     return null;
@@ -237,4 +365,36 @@ function normalizeAssetPath(path) {
     .trim()
     .replace(/^\.?\//, "")
     .replace(/^\//, "");
+}
+
+function getChangeTone(changeType) {
+  if (changeType === "added") {
+    return {
+      background: "rgba(18, 122, 69, 0.14)",
+      color: "#0f6b3e",
+      borderColor: "rgba(18, 122, 69, 0.24)"
+    };
+  }
+
+  if (changeType === "removed") {
+    return {
+      background: "rgba(155, 28, 28, 0.12)",
+      color: "#9b1c1c",
+      borderColor: "rgba(155, 28, 28, 0.2)"
+    };
+  }
+
+  if (changeType === "modified") {
+    return {
+      background: "rgba(194, 120, 3, 0.14)",
+      color: "#8d5a00",
+      borderColor: "rgba(194, 120, 3, 0.24)"
+    };
+  }
+
+  return {
+    background: "rgba(15, 23, 42, 0.08)",
+    color: "#52606d",
+    borderColor: "rgba(31, 41, 51, 0.12)"
+  };
 }

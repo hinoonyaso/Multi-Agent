@@ -237,6 +237,10 @@ function buildRunSummary({ requestedRunId, runRecord, persistedState }) {
       finalizedAt: persistedState?.finalizedAt ?? null
     }),
     lastEvent: runRecord?.lastEvent ?? null,
+    revision: summarizeRevisionTrace(
+      persistedState?.steps?.revision_trace,
+      persistedState?.summaries?.revision_trace
+    ),
     savedSteps,
     result: finalResult,
     error: runRecord?.error ?? null
@@ -274,6 +278,80 @@ function getSavedStepOutputs(persistedState) {
     ...persistedState.steps,
     validation: persistedState.validation ?? null
   });
+}
+
+function summarizeRevisionTrace(revisionTrace, persistedSummary) {
+  if (!revisionTrace && !persistedSummary) {
+    return {
+      occurred: false
+    };
+  }
+
+  const changedArtifacts = Array.isArray(revisionTrace?.changed_artifacts)
+    ? revisionTrace.changed_artifacts
+    : [];
+  const criticIssues = Array.isArray(revisionTrace?.critic_issues)
+    ? revisionTrace.critic_issues
+    : [];
+  const changedFiles = changedArtifacts.filter(
+    (entry) =>
+      entry &&
+      entry.artifact_type === "file" &&
+      entry.change_type !== "unchanged_checked"
+  );
+
+  return compactObject({
+    occurred: true,
+    traceId:
+      readNestedString(revisionTrace, ["metadata", "trace_id"]) ??
+      persistedSummary?.trace_id ??
+      null,
+    subjectMode:
+      readNestedString(revisionTrace, ["metadata", "subject_mode"]) ??
+      persistedSummary?.subject_mode ??
+      null,
+    sourceStep:
+      readNestedString(revisionTrace, ["source_step", "step_name"]) ??
+      persistedSummary?.source_step ??
+      null,
+    criticIssueCount:
+      criticIssues.length > 0
+        ? criticIssues.length
+        : toSafeInteger(persistedSummary?.issue_count),
+    changedFileCount:
+      changedFiles.length > 0
+        ? changedFiles.length
+        : toSafeInteger(persistedSummary?.changed_artifact_count),
+    improvementSummary:
+      readNestedString(revisionTrace, ["improvement_summary", "net_effect"]) ??
+      persistedSummary?.net_effect ??
+      null,
+    validatorOutcome: compactObject({
+      status:
+        readNestedString(revisionTrace, ["validation_outcome", "status"]) ??
+        persistedSummary?.validation_status ??
+        null,
+      summary: readNestedString(revisionTrace, ["validation_outcome", "summary"])
+    })
+  });
+}
+
+function readNestedString(value, pathParts) {
+  let current = value;
+
+  for (const part of pathParts) {
+    if (!current || typeof current !== "object") {
+      return null;
+    }
+
+    current = current[part];
+  }
+
+  return typeof current === "string" && current.trim() ? current.trim() : null;
+}
+
+function toSafeInteger(value) {
+  return Number.isInteger(value) ? value : undefined;
 }
 
 function compactObject(value) {

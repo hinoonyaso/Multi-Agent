@@ -8,6 +8,7 @@ const RUNS_ROOT = path.resolve(MODULE_DIR, "..", "..", "runs");
 const STEPS_DIRNAME = "steps";
 const SIMPLE_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 const RUN_STATUS_VALUES = new Set(["created", "running", "failed", "completed"]);
+const REVISION_TRACE_STEP = "revision_trace";
 
 export const RUN_STATUS = Object.freeze({
   CREATED: "created",
@@ -65,6 +66,8 @@ export async function saveStep(runState, stepName, data) {
     runState.planner = data;
   } else if (fileInfo.kind === "validation") {
     runState.validation = data;
+  } else if (fileInfo.kind === "revision_trace") {
+    runState.steps[REVISION_TRACE_STEP] = data;
   } else {
     runState.steps[normalizedStepName] = data;
   }
@@ -99,12 +102,23 @@ export async function loadRunState(runId) {
     error: meta?.error ?? null
   };
 
+  const revisionTrace = await loadRevisionTrace(runDir);
+
+  if (revisionTrace !== null) {
+    state.steps[REVISION_TRACE_STEP] = revisionTrace;
+  }
+
   for (const entry of await readdir(stepsDir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith(".json")) {
       continue;
     }
 
     const stepName = entry.name.slice(0, -".json".length);
+
+    if (stepName === REVISION_TRACE_STEP && state.steps[REVISION_TRACE_STEP] !== undefined) {
+      continue;
+    }
+
     state.steps[stepName] = await readJson(path.join(stepsDir, entry.name));
   }
 
@@ -175,6 +189,15 @@ function getStepFileInfo(stepName) {
     };
   }
 
+  if (stepName === REVISION_TRACE_STEP) {
+    return {
+      kind: "revision_trace",
+      filePath(runState) {
+        return path.join(runState.runDir, "revision_trace.json");
+      }
+    };
+  }
+
   return {
     kind: "step",
     filePath(runState) {
@@ -198,11 +221,17 @@ async function writeRunMeta(runState) {
       router: runState.router === null ? null : "router.json",
       planner: runState.planner === null ? null : "planner.json",
       validation: runState.validation === null ? null : "validation.json",
+      revision_trace:
+        runState.steps[REVISION_TRACE_STEP] === undefined
+          ? null
+          : "revision_trace.json",
       final: runState.final === null ? null : "final.json",
       steps: Object.keys(runState.steps)
         .sort()
+        .filter((stepName) => stepName !== REVISION_TRACE_STEP)
         .map((stepName) => `${STEPS_DIRNAME}/${stepName}.json`)
-    }
+    },
+    summaries: buildRunSummaries(runState)
   };
 
   await writeJson(path.join(runState.runDir, "run.json"), metadata);
@@ -228,6 +257,51 @@ async function readOptionalJson(filePath) {
 
     throw error;
   }
+}
+
+async function loadRevisionTrace(runDir) {
+  const dedicated = await readOptionalJson(path.join(runDir, "revision_trace.json"));
+
+  if (dedicated !== null) {
+    return dedicated;
+  }
+
+  return readOptionalJson(path.join(runDir, STEPS_DIRNAME, "revision_trace.json"));
+}
+
+function buildRunSummaries(runState) {
+  const revisionTraceSummary = summarizeRevisionTrace(runState.steps?.[REVISION_TRACE_STEP]);
+
+  return compactObject({
+    revision_trace: revisionTraceSummary
+  });
+}
+
+function summarizeRevisionTrace(revisionTrace) {
+  if (!revisionTrace || typeof revisionTrace !== "object") {
+    return null;
+  }
+
+  const changedArtifacts = Array.isArray(revisionTrace.changed_artifacts)
+    ? revisionTrace.changed_artifacts
+    : [];
+  const criticIssues = Array.isArray(revisionTrace.critic_issues)
+    ? revisionTrace.critic_issues
+    : [];
+  const changedCount = changedArtifacts.filter(
+    (entry) => entry && entry.change_type !== "unchanged_checked"
+  ).length;
+
+  return compactObject({
+    trace_id: readNestedString(revisionTrace, ["metadata", "trace_id"]),
+    subject_mode: readNestedString(revisionTrace, ["metadata", "subject_mode"]),
+    source_step: readNestedString(revisionTrace, ["source_step", "step_name"]),
+    issue_count: criticIssues.length,
+    changed_artifact_count: changedCount,
+    validation_status: readNestedString(revisionTrace, ["validation_outcome", "status"]),
+    net_effect: readNestedString(revisionTrace, ["improvement_summary", "net_effect"]),
+    file: "revision_trace.json"
+  });
 }
 
 function toSerializable(value, seen = new WeakSet()) {
@@ -299,6 +373,48 @@ function toSerializable(value, seen = new WeakSet()) {
   }
 
   return String(value);
+}
+
+function compactObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => {
+      if (entryValue === null || entryValue === undefined) {
+        return false;
+      }
+
+      if (typeof entryValue === "string") {
+        return entryValue.trim() !== "";
+      }
+
+      if (Array.isArray(entryValue)) {
+        return entryValue.length > 0;
+      }
+
+      if (typeof entryValue === "object") {
+        return Object.keys(entryValue).length > 0;
+      }
+
+      return true;
+    })
+  );
+}
+
+function readNestedString(value, pathParts) {
+  let current = value;
+
+  for (const part of pathParts) {
+    if (!current || typeof current !== "object") {
+      return null;
+    }
+
+    current = current[part];
+  }
+
+  return typeof current === "string" && current.trim() ? current.trim() : null;
 }
 
 function formatTimestamp(isoTimestamp) {

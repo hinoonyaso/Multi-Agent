@@ -3,6 +3,7 @@ import RunForm from "./components/RunForm.jsx";
 import AgentTimeline from "./components/AgentTimeline.jsx";
 import LogPanel from "./components/LogPanel.jsx";
 import ResultPanel from "./components/ResultPanel.jsx";
+import RevisionTracePanel from "./components/RevisionTracePanel.jsx";
 import FilePreview from "./components/FilePreview.jsx";
 import { getRun, startRun } from "./lib/api.js";
 import { connectRunSocket } from "./lib/socket.js";
@@ -335,6 +336,7 @@ export default function App() {
 
         <div style={{ ...stackStyle, ...panelStyle, gridArea: "result" }}>
           <ResultPanel runId={runId} status={runStatus} result={normalizedResult} />
+          <RevisionTracePanel revisionTrace={normalizedResult?.revision ?? null} />
         </div>
 
         <div style={{ ...panelStyle, gridArea: "preview" }}>
@@ -343,6 +345,11 @@ export default function App() {
             status={runStatus}
             deliverables={deliverables}
             files={previewFiles}
+            revisionTrace={
+              runRecord?.savedSteps?.revision_trace ??
+              normalizedResult?.revision ??
+              null
+            }
           />
         </div>
       </section>
@@ -435,6 +442,7 @@ function buildResult({ runId, runStatus, runRecord, errorMessage }) {
       result?.pipelineResult?.mode ??
       runRecord?.input?.modeHint ??
       null,
+    revision: runRecord?.revision ?? null,
     error: runRecord?.error ?? (errorMessage ? { message: errorMessage } : null),
     packaging
   };
