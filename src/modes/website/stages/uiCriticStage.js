@@ -11,11 +11,15 @@ import {
 } from "./shared.js";
 import { captureRenderDiagnostics } from "../renderer.js";
 import { runLightweightCritic } from "../lightweightCritic.js";
+import { resolveAgentForWorker } from "../../../core/workerRegistry.js";
 
 export async function uiCriticNodeRunner(ctx) {
   emitStageEvent(ctx.emit, "ui_critic_started", "ui_critic", "Reviewing first-pass implementation.");
   const { uiCritic, renderDiagnosticsSummary } = await runUiCriticStage(
-    ctx.runtime,
+    {
+      ...ctx.runtime,
+      assignedWorker: ctx.assignedWorker ?? null
+    },
     ctx.architect,
     ctx.firstPass.coder,
     ctx.firstPass.artifactCandidate
@@ -42,7 +46,8 @@ export function buildFollowUpSkipResult(ctx) {
 }
 
 async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
-  const agent = getAgent("website_ui_critic");
+  const assignedAgent = resolveAgentForWorker(runtime.assignedWorker);
+  const agent = assignedAgent ?? getAgent("website_ui_critic");
   let prompt = agent ? await loadAgentPrompt(agent) : await loadModePrompt(MODE_NAME, "ui_critic");
   const input = {
     mode: MODE_NAME,
@@ -89,5 +94,13 @@ async function runUiCriticStage(runtime, architect, coder, artifactCandidate) {
       }
     : null;
 
-  return { uiCritic, renderDiagnosticsSummary };
+  return {
+    uiCritic: renderDiagnosticsSummary
+      ? {
+          ...uiCritic,
+          render_diagnostics_summary: renderDiagnosticsSummary
+        }
+      : uiCritic,
+    renderDiagnosticsSummary
+  };
 }

@@ -11,12 +11,21 @@ import {
   summarizeValidatorResult
 } from "./shared.js";
 import { persistRevisionTrace } from "./revisionStage.js";
+import { resolveAgentForWorker } from "../../../core/workerRegistry.js";
 
 export async function validatorNodeRunner(ctx) {
   const validatedRevision = ctx.validatedRevision ?? ctx.revision;
   const uiCritic = ctx.uiCritic;
   emitStageEvent(ctx.emit, "validator_started", "validator", "Validating website artifact.");
-  const validator = await runValidatorStage(ctx.runtime, ctx.architect, uiCritic, validatedRevision);
+  const validator = await runValidatorStage(
+    {
+      ...ctx.runtime,
+      assignedWorker: ctx.assignedWorker ?? null
+    },
+    ctx.architect,
+    uiCritic,
+    validatedRevision
+  );
   emitStageEvent(ctx.emit, "validator_completed", "validator", summarizeValidatorResult(validator));
   await persistWebsiteStep(ctx.runtime, STEP_KEYS.validator, validator);
   await persistRevisionTrace(ctx.runtime, uiCritic, validatedRevision, validator);
@@ -24,7 +33,8 @@ export async function validatorNodeRunner(ctx) {
 }
 
 async function runValidatorStage(runtime, architect, uiCritic, revision) {
-  const agent = getAgent("website_validator");
+  const assignedAgent = resolveAgentForWorker(runtime.assignedWorker);
+  const agent = assignedAgent ?? getAgent("website_validator");
   const prompt = agent ? await loadAgentPrompt(agent) : await loadRolePrompt("validator");
   const contractValidation = await validateOutput({
     mode: MODE_NAME,

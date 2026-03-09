@@ -288,6 +288,7 @@ function buildRunSummary({ requestedRunId, runRecord, persistedState }) {
     lastEvent: runRecord?.lastEvent ?? null,
     currentStage: deriveCurrentStage(runRecord, steps),
     stages: deriveStageMap(steps),
+    roles: deriveRoleMap(steps),
     renderDiagnostics: steps.render_diagnostics ?? null,
     finalRecommendation: deriveFinalRecommendation(steps, finalResult),
     revision: summarizeRevisionTrace(
@@ -320,6 +321,57 @@ function deriveStageMap(steps) {
   }
   // A revision stage with no revision_summary but a coder_final means it was skipped (no revision occurred)
   if (result.revision === "pending" && steps.coder_final) result.revision = "skipped";
+  return result;
+}
+
+function deriveRoleMap(steps) {
+  const ROLE_ORDER = [
+    "request_interpreter",
+    "change_impact_analyzer",
+    "requirements_analyst",
+    "information_architect",
+    "frontend_coder",
+    "ui_critic",
+    "failure_analyst",
+    "retry_planner",
+    "validator_gate"
+  ];
+  const stepKeys = {
+    request_interpreter: "request_interpreter",
+    change_impact_analyzer: "change_impact_analyzer",
+    requirements_analyst: "requirements_analyst",
+    information_architect: "architect",
+    frontend_coder: "coder_final",
+    ui_critic: "ui_critic",
+    failure_analyst: "failure_analyst",
+    retry_planner: "retry_planner",
+    validator_gate: "validator"
+  };
+  const result = {};
+
+  for (const role of ROLE_ORDER) {
+    result[role] = steps[stepKeys[role]] ? "done" : "pending";
+  }
+
+  if (result.frontend_coder === "pending" && steps.coder_first_pass) {
+    result.frontend_coder = "done";
+  }
+
+  if (result.change_impact_analyzer === "pending" && !steps.request_interpreter?.signals?.follow_up) {
+    result.change_impact_analyzer = "skipped";
+  }
+
+  if (
+    result.requirements_analyst === "pending" &&
+    steps.request_interpreter?.signals?.ambiguous_request === false
+  ) {
+    result.requirements_analyst = "skipped";
+  }
+
+  if (result.failure_analyst === "pending" && steps.validator?.approval?.recommendation === "approve") {
+    result.failure_analyst = "skipped";
+  }
+
   return result;
 }
 

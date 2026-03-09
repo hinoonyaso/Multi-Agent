@@ -241,4 +241,4 @@ function buildRevisionTraceSelection(artifactDiff) {
     .map((e) => ({ artifact_type: "file", path: e.path, note: e.summary }));
 }
 
-export { createRevisionPlan };
+export { createRevisionPlan, createRevisionSummary };

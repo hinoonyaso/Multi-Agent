@@ -37,18 +37,25 @@ Website mode production-ready; other modes in development.
 
 ## Current Implemented Mode: Website
 
-The website mode runs a full graph-based execution flow:
+The website mode now runs as a role-oriented state machine with dynamic role selection:
 
 ```
-architect → coder_first_pass → ui_critic → revision → validator
+request_interpreter
+→ change_impact_analyzer? / requirements_analyst?
+→ information_architect
+→ frontend_coder
+→ ui_critic
+→ retry_planner
+→ validator_gate
 ```
 
-- **First-pass generation** is reviewed by a UI critic before revision
-- **Render diagnostics** capture a Playwright screenshot, console errors, and mobile viewport overflow before the critic runs — both static HTML and React/Vite apps are supported
-- **Follow-up requests** use a lightweight critic path that skips the full UI critic for faster iteration
-- **Revision loop** executes when the critic recommends changes and produces a traceable coder revision pass
-- **Contract repair** retries the coder pass when the validator finds contract violations
-- **`GET /run/:runId`** returns stage-level status (`stages`, `currentStage`, `renderDiagnostics`, `finalRecommendation`) in addition to the full saved steps
+Optional branches are activated from run state rather than a fixed stage list:
+
+- **Follow-up requests** activate `change_impact_analyzer` and reuse a lightweight critique path
+- **Ambiguous or large-scope requests** activate `requirements_analyst` before architecture
+- **UI review failures** activate `retry_planner` and rerun only `frontend_coder`
+- **Validator failures** activate `failure_analyst` plus `retry_planner`, then rerun only the repair role set
+- **`GET /run/:runId`** now returns both legacy stage status (`stages`) and role-level status (`roles`)
 
 ## Implemented Features
 
@@ -56,8 +63,10 @@ architect → coder_first_pass → ui_critic → revision → validator
 - **Render-based UI critic**: Playwright, screenshot, console capture, mobile viewport; Vite dev server spawned for `react_vite_app` output
 - **Schema-based contract validation**: mode contracts, role schemas, structural checks
 - **Lightweight critic for follow-up path**: skips full UI critic when `previousArtifact` is provided
+- **Role registry + worker pool**: website mode separates available roles from the workers that execute them
+- **State-based role orchestration**: website mode selects the minimum next role set from request type, follow-up state, critique output, and validator output
 - **Unified runId**: API `runId` is passed through to pipeline; persisted state uses the same ID
-- **Stage decomposition**: website mode logic split into `stages/` (architectStage, coderStage, uiCriticStage, revisionStage, validatorStage) with a thin `index.js` orchestrator
+- **Stage decomposition**: website mode still reuses the existing narrow stage runners (`architectStage`, `coderStage`, `uiCriticStage`, `validatorStage`) under a role orchestrator
 
 ## Running the Local Web UI
 

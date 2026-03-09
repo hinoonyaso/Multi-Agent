@@ -10,17 +10,25 @@ import {
   emitStageEvent,
   summarizeArchitectResult
 } from "./shared.js";
+import { resolveAgentForWorker } from "../../../core/workerRegistry.js";
 
 export async function architectNodeRunner(ctx) {
   emitStageEvent(ctx.emit, "architect_started", "architect", "Generating website architecture.");
-  const architect = await runArchitectStage(ctx.runtime);
+  const architect = await runArchitectStage({
+    ...ctx.runtime,
+    assignedWorker: ctx.assignedWorker ?? null,
+    requestProfile: ctx.requestProfile ?? null,
+    requirementsSpec: ctx.requirementsSpec ?? null,
+    changeImpact: ctx.changeImpact ?? null
+  });
   emitStageEvent(ctx.emit, "architect_completed", "architect", summarizeArchitectResult(architect));
   await persistWebsiteStep(ctx.runtime, STEP_KEYS.architect, architect);
   return architect;
 }
 
 async function runArchitectStage(runtime) {
-  const agent = getAgent("website_architect");
+  const assignedAgent = resolveAgentForWorker(runtime.assignedWorker);
+  const agent = assignedAgent ?? getAgent("website_architect");
   const prompt = agent ? await loadAgentPrompt(agent) : await loadModePrompt(MODE_NAME, "architect");
   const followUpContext = getFollowUpContext(runtime.input);
 
@@ -36,7 +44,10 @@ async function runArchitectStage(runtime) {
       previous_request: followUpContext.previousRequest,
       previous_run: followUpContext.previousRun,
       routing: runtime.routing,
-      planning: runtime.planning
+      planning: runtime.planning,
+      request_profile: runtime.requestProfile ?? null,
+      requirements_spec: runtime.requirementsSpec ?? null,
+      change_impact: runtime.changeImpact ?? null
     },
     expectedOutput: {
       site_type: "landing",

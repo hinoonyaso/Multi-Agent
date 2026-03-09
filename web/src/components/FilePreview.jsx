@@ -131,6 +131,7 @@ export default function FilePreview({
   entrypoints = [],
   revisionTrace = null
 }) {
+  const [selectedPath, setSelectedPath] = useState("");
   const previewFiles = useMemo(
     () => normalizePreviewFiles({ deliverables, files }),
     [deliverables, files]
@@ -148,7 +149,6 @@ export default function FilePreview({
     [entrypoints, previewFiles, selectedPath]
   );
   const changedFileCount = fileChangeMap.size;
-  const [selectedPath, setSelectedPath] = useState(previewFiles[0]?.path ?? "");
 
   useEffect(() => {
     if (!previewFiles.some((file) => file.path === selectedPath)) {

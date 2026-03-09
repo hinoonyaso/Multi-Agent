@@ -12,6 +12,7 @@ import {
   summarizeCoderStart,
   summarizeCoderResult
 } from "./shared.js";
+import { resolveAgentForWorker } from "../../../core/workerRegistry.js";
 
 export async function coderFirstPassNodeRunner(ctx) {
   const firstPass = await runFirstPassGeneration(ctx.runtime, ctx.architect, ctx.emit);
@@ -36,10 +37,15 @@ export async function runCoderStage(
     previousCoder = null,
     revisionPlan = null,
     repairPrompt = "",
-    emit = null
+    emit = null,
+    requestProfile = null,
+    requirementsSpec = null,
+    changeImpact = null,
+    assignedWorker = null
   } = {}
 ) {
-  const agent = getAgent("website_coder");
+  const assignedAgent = resolveAgentForWorker(assignedWorker);
+  const agent = assignedAgent ?? getAgent("website_coder");
   const basePrompt = agent ? await loadAgentPrompt(agent) : await loadModePrompt(MODE_NAME, "coder");
   const prompt = buildRetryRolePrompt({ basePrompt, repairPrompt });
   const followUpArtifact = sanitizeFollowUpArtifact(runtime.input?.previousArtifact);
@@ -58,6 +64,10 @@ export async function runCoderStage(
       routing: runtime.routing,
       planning: runtime.planning,
       architecture: architect.parsed,
+      request_profile: requestProfile,
+      requirements_spec: requirementsSpec,
+      change_impact: changeImpact,
+      retry_plan: revisionPlan,
       generation: createCoderGenerationInput({ passName, previousCoder, revisionPlan, followUpArtifact })
     },
     expectedOutput: {
